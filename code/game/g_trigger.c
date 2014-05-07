@@ -116,6 +116,30 @@ void SP_trigger_multiple( gentity_t *ent ) {
 }
 
 
+/*QUAKED trigger_once (.5 .5 .5) ? NOTOUCH X NOT_PLAYER SHOOTABLE
+Can only be triggered once
+*/
+// ZTM: PORTFIXME: Missing shootable method (spawnflags 8)
+void SP_trigger_once( gentity_t *ent ) {
+	ent->wait = -1;
+
+	if ( (ent->spawnflags & 4 ) ) { // NOT_PLAYER
+		// ZTM: PORTHACK: there are no monsters, so just free it
+		G_FreeEntity( ent );
+		return;
+	}
+
+	if ( !(ent->spawnflags & 1 ) ) // NOTOUCH
+		ent->touch = Touch_Multi;
+	ent->use = Use_Multi;
+
+	ent->spawnflags = 0;
+
+	InitTrigger( ent );
+	trap_LinkEntity (ent);
+}
+
+
 
 /*
 ==============================================================================
