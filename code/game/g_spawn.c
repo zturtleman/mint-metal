@@ -325,6 +325,13 @@ qboolean G_CallSpawn( gentity_t *ent ) {
 			return qtrue;
 		}
 	}
+
+	// ZTM: PORTHACK: Keep teleport dests
+	if ( ent->targetname ) {
+		SP_info_notnull( ent );
+		return qtrue;
+	}
+
 	G_Printf ("%s doesn't have a spawn function\n", ent->classname);
 	return qfalse;
 }
