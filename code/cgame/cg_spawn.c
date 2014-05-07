@@ -348,6 +348,7 @@ qboolean CG_ParseSpawnVars( void ) {
 
 void SP_worldspawn( void ) {
 	char    *s;
+	int		spawnflags;
 
 	CG_SpawnString( "classname", "", &s );
 	if ( Q_stricmp( s, "worldspawn" ) ) {
@@ -372,6 +373,57 @@ void SP_worldspawn( void ) {
 	CG_EffectParse( s );
 
 	CG_SpawnFloat( "skyalpha", "1", &cg.skyAlpha );
+
+	// NEW IN FAKK
+	if ( CG_SpawnInt( "spawnflags", "0", &spawnflags ) ) {
+		Com_Printf( "spawnflags: %d\n", spawnflags);
+	}
+
+	// CINEMATIC
+	if ( spawnflags & 1 ) {
+		Com_Printf("spawnflags: CINEMATIC\n");
+	}
+
+	if ( CG_SpawnString( "soundtrack", "", &s ) ) {
+		Com_Printf( "soundtrack: %s\n", s);
+	}
+
+	if ( CG_SpawnString( "skipthread", "", &s ) ) {
+		Com_Printf( "skipthread: %s\n", s);
+	}
+
+	if ( CG_SpawnString( "script", "", &s ) ) {
+		Com_Printf( "script: %s\n", s);
+	}
+
+	if ( CG_SpawnString( "watercolor", "", &s ) ) {
+		Com_Printf( "watercolor: %s\n", s);
+	}
+
+	if ( CG_SpawnString( "wateralpha", "", &s ) ) {
+		Com_Printf( "wateralpha: %s\n", s);
+	}
+
+	if ( CG_SpawnString( "lavacolor", "", &s ) ) {
+		Com_Printf( "lavacolor: %s\n", s);
+	}
+
+	if ( CG_SpawnString( "lavaalpha", "", &s ) ) {
+		Com_Printf( "lavaalpha: %s\n", s);
+	}
+
+	if ( CG_SpawnString( "farplane_color", "", &s ) ) {
+		Com_Printf( "farplane_color: %s\n", s);
+	}
+
+	// default is yes
+	if ( CG_SpawnString( "farplane_cull", "yes", &s ) ) {
+		Com_Printf( "farplane_cull: %s\n", s);
+	}
+
+	if ( CG_SpawnString( "farplane", "", &s ) ) {
+		Com_Printf( "farplane: %s\n", s);
+	}
 }
 
 /*
