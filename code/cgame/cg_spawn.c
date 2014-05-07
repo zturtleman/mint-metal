@@ -205,6 +205,22 @@ void SP_skyportal( void ) {
 	CG_SpawnInt( "fogfar", "300", &cg.skyPortalFogDepthForOpaque );
 }
 
+// ZTM: A complex scripting entity from FAKK. Only sky portal origin is supported.
+// It works on fakkhouse map, portal sky doesn't work on all maps though.
+// Might set skyorigin entity via FAKK's scripting files...
+void SP_script_object( void ) {
+	char *s;
+
+	if (CG_SpawnString("script", "", &s)) {
+		//CG_Printf("DEBUG: script_object: %s\n", s );
+		// "rendereffects +skyorigin\n"
+		if ( strstr( s, "+skyorigin" ) ) {
+			CG_SpawnVector( "origin", "0 0 0", cg.skyPortalOrigin );
+			cg.hasSkyPortal = qtrue;
+		}
+	}
+}
+
 typedef struct {
 	char    *name;
 	void ( *spawn )( void );
@@ -214,6 +230,7 @@ spawn_t spawns[] = {
 	{0, 0},
 	{"misc_gamemodel",               SP_misc_gamemodel},
 	{"props_skyportal",              SP_skyportal},
+	{"script_object",                SP_script_object}
 };
 
 int numSpawns = ARRAY_LEN( spawns );
