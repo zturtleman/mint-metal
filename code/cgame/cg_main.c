@@ -49,7 +49,6 @@ void CG_Ingame_Init( int serverMessageNum, int serverCommandSequence, int maxSpl
 void CG_Shutdown( void );
 void CG_Refresh( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback, connstate_t state, int realTime );
 static char *CG_VoIPString( int localClientNum );
-void CG_DistributeKeyEvent( int key, qboolean down, unsigned time, connstate_t state );
 
 
 /*
@@ -732,7 +731,7 @@ CG_AddNotifyText
 =================
 */
 void CG_AddNotifyText( int realTime, qboolean restoredText ) {
-	char text[ MAX_CONSOLE_TEXT - 1 ];
+	char text[1024];
 	char *buffer;
 	int bufferLen;
 	int lc;
@@ -2475,26 +2474,9 @@ void CG_Init( connstate_t state, int maxSplitView, int playVideo ) {
 	trap_GetGlconfig( &cgs.glconfig );
 
 	// Viewport scale and offset
-	cgs.screenXScaleStretch = cgs.glconfig.vidWidth * (1.0/640.0);
-	cgs.screenYScaleStretch = cgs.glconfig.vidHeight * (1.0/480.0);
-	if ( cgs.glconfig.vidWidth * 480 > cgs.glconfig.vidHeight * 640 ) {
-		cgs.screenXScale = cgs.glconfig.vidWidth * (1.0/640.0);
-		cgs.screenYScale = cgs.glconfig.vidHeight * (1.0/480.0);
-		// wide screen
-		cgs.screenXBias = 0.5 * ( cgs.glconfig.vidWidth - ( cgs.glconfig.vidHeight * (640.0/480.0) ) );
-		cgs.screenXScale = cgs.screenYScale;
-		// no narrow screen
-		cgs.screenYBias = 0;
-	}
-	else {
-		cgs.screenXScale = cgs.glconfig.vidWidth * (1.0/640.0);
-		cgs.screenYScale = cgs.glconfig.vidHeight * (1.0/480.0);
-		// narrow screen
-		cgs.screenYBias = 0.5 * ( cgs.glconfig.vidHeight - ( cgs.glconfig.vidWidth * (480.0/640.0) ) );
-		cgs.screenYScale = cgs.screenXScale;
-		// no wide screen
-		cgs.screenXBias = 0;
-	}
+	cg.viewport = 0;
+	cg.numViewports = 1;
+	CG_CalcVrect();
 
 	CG_ConsoleInit();
 
@@ -2692,7 +2674,7 @@ void CG_Refresh( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback
 	CG_UpdateCvars();
 
 	if ( state == CA_CINEMATIC && cg.cinematicHandle >= 0 ) {
-		CG_ClearScreen();
+		CG_ClearViewport();
 		trap_CIN_DrawCinematic( cg.cinematicHandle );
 
 		if ( trap_CIN_RunCinematic( cg.cinematicHandle ) == FMV_EOF ) {

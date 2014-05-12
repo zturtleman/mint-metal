@@ -725,6 +725,13 @@ typedef struct {
 
 	int			numViewports;
 	int			viewport;
+
+	// Viewport coords in window-coords (don't use with CG_AdjustFrom640!)
+	int			viewportX;
+	int			viewportY;
+	int			viewportWidth;
+	int			viewportHeight;
+
 	qboolean	singleCamera; // Rending multiple clients using one viewport
 
 	// information screen text during loading
@@ -1417,6 +1424,7 @@ void CG_UpdateCvars( void );
 int CG_CrosshairPlayer( int localClientNum );
 int CG_LastAttacker( int localClientNum );
 void CG_LoadMenus(const char *menuFile);
+void CG_DistributeKeyEvent( int key, qboolean down, unsigned time, connstate_t state );
 void CG_KeyEvent(int key, qboolean down);
 void CG_MouseEvent(int localClientNum, int x, int y);
 void CG_JoystickEvent( int localClientNum, int axis, int value );
@@ -1447,6 +1455,8 @@ void CG_ZoomUp_f( int localClient );
 void CG_ZoomDown_f( int localClient );
 void CG_AddBufferedSound( sfxHandle_t sfx);
 void CG_StepOffset( vec3_t vieworg );
+
+void CG_CalcVrect( void );
 
 void CG_SetupFrustum( void );
 qboolean CG_CullPoint( vec3_t pt );
@@ -1506,7 +1516,7 @@ void CG_GetColorForHealth( int health, int armor, vec4_t hcolor );
 void CG_DrawRect( float x, float y, float width, float height, float size, const float *color );
 void CG_DrawSides(float x, float y, float w, float h, float size);
 void CG_DrawTopBottom(float x, float y, float w, float h, float size);
-void CG_ClearScreen( void );
+void CG_ClearViewport( void );
 
 
 //

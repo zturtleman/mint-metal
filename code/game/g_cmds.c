@@ -42,11 +42,16 @@ DeathmatchScoreboardMessage
 */
 void DeathmatchScoreboardMessage( gentity_t *ent ) {
 	char		entry[1024];
-	char		string[1400];
+	char		string[1000];
 	int			stringlength;
 	int			i, j;
 	gclient_t	*cl;
 	int			numSorted, scoreFlags, accuracy, perfect;
+
+	// don't send scores to bots (bots don't parse them)
+	if ( ent->r.svFlags & SVF_BOT ) {
+		return;
+	}
 
 	// send the latest information on all clients
 	string[0] = 0;
