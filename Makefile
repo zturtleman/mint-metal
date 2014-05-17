@@ -98,7 +98,7 @@ VM_PREFIX=mint-
 endif
 
 ifndef SOURCE_ARCHIVE
-SOURCE_ARCHIVE=mint-arena
+SOURCE_ARCHIVE=mint-metal
 endif
 
 ifndef BASEGAME
