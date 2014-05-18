@@ -444,7 +444,7 @@ static userCvarTable_t userCvarTable[] = {
 
 	{ cg_autoswitch, "cg_autoswitch", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ cg_drawGun, "cg_drawGun", "1", CVAR_ARCHIVE, RANGE_INT(0, 3) },
-	{ cg_thirdPerson, "cg_thirdPerson", "0", 0, RANGE_BOOL },
+	{ cg_thirdPerson, "cg_thirdPerson", "1", 0, RANGE_BOOL },
 	{ cg_thirdPersonRange, "cg_thirdPersonRange", "40", CVAR_CHEAT, RANGE_ALL },
 	{ cg_thirdPersonAngle, "cg_thirdPersonAngle", "0", CVAR_CHEAT, RANGE_ALL },
 	{ cg_thirdPersonHeight, "cg_thirdPersonHeight", "24", 0, RANGE_INT( 0, 32 ) },
