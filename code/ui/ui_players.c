@@ -75,11 +75,9 @@ tryagain:
 	}
 
 	item = BG_FindItemForWeapon( weaponNum );
-	if ( !item ) {
-		goto tryagain;
+	if ( item ) {
+		pi->weaponModel = trap_R_RegisterModel( item->world_model[0] );
 	}
-
-	pi->weaponModel = trap_R_RegisterModel( item->world_model[0] );
 
 	if( pi->weaponModel == 0 ) {
 		if( weaponNum == WP_MACHINEGUN ) {
@@ -90,16 +88,10 @@ tryagain:
 		goto tryagain;
 	}
 
-	if ( weaponNum == WP_MACHINEGUN || weaponNum == WP_GAUNTLET || weaponNum == WP_BFG
-#ifdef MISSIONPACK
-		|| weaponNum == WP_CHAINGUN
-#endif
-		) {
-		strcpy( path, item->world_model[0] );
-		COM_StripExtension(path, path, sizeof(path));
-		strcat( path, "_barrel.md3" );
-		pi->barrelModel = trap_R_RegisterModel( path );
-	}
+	strcpy( path, item->world_model[0] );
+	COM_StripExtension(path, path, sizeof(path));
+	strcat( path, "_barrel.md3" );
+	pi->barrelModel = trap_R_RegisterModel( path );
 
 	strcpy( path, item->world_model[0] );
 	COM_StripExtension(path, path, sizeof(path));
@@ -361,8 +353,8 @@ static qboolean UI_PositionRotatedEntityOnTag( refEntity_t *entity, const refEnt
 	}
 
 	// cast away const because of compiler problems
-	MatrixMultiply( entity->axis, ((refEntity_t *)parent)->axis, tempAxis );
-	MatrixMultiply( lerped.axis, tempAxis, entity->axis );
+	MatrixMultiply( entity->axis, lerped.axis, tempAxis );
+	MatrixMultiply( tempAxis, ((refEntity_t *)parent)->axis, entity->axis );
 
 	return returnValue;
 }
@@ -865,12 +857,7 @@ void UI_DrawPlayer( float x, float y, float w, float h, playerInfo_t *pi, int ti
 	if ( pi->currentWeapon != WP_NONE ) {
 		memset( &gun, 0, sizeof(gun) );
 		gun.hModel = pi->weaponModel;
-		if( pi->currentWeapon == WP_RAILGUN ) {
-			Byte4Copy( pi->c1RGBA, gun.shaderRGBA );
-		}
-		else {
-			Byte4Copy( colorWhite, gun.shaderRGBA );
-		}
+		Byte4Copy( pi->c1RGBA, gun.shaderRGBA );
 		VectorCopy( origin, gun.lightingOrigin );
 		UI_PositionEntityOnTag( &gun, &torso, pi->torsoModel, "tag_weapon");
 		gun.renderfx = renderfx;
@@ -880,11 +867,7 @@ void UI_DrawPlayer( float x, float y, float w, float h, playerInfo_t *pi, int ti
 	//
 	// add the spinning barrel
 	//
-	if ( pi->realWeapon == WP_MACHINEGUN || pi->realWeapon == WP_GAUNTLET || pi->realWeapon == WP_BFG
-#ifdef MISSIONPACK
-		|| pi->realWeapon == WP_CHAINGUN
-#endif
-		) {
+	if ( pi->barrelModel ) {
 		vec3_t	angles;
 
 		memset( &barrel, 0, sizeof(barrel) );
@@ -895,10 +878,6 @@ void UI_DrawPlayer( float x, float y, float w, float h, playerInfo_t *pi, int ti
 		angles[YAW] = 0;
 		angles[PITCH] = 0;
 		angles[ROLL] = UI_MachinegunSpinAngle( pi );
-		if( pi->realWeapon == WP_GAUNTLET || pi->realWeapon == WP_BFG ) {
-			angles[PITCH] = angles[ROLL];
-			angles[ROLL] = 0;
-		}
 		AnglesToAxis( angles, barrel.axis );
 
 		UI_PositionRotatedEntityOnTag( &barrel, &gun, pi->weaponModel, "tag_barrel");
@@ -913,12 +892,7 @@ void UI_DrawPlayer( float x, float y, float w, float h, playerInfo_t *pi, int ti
 		if ( pi->flashModel ) {
 			memset( &flash, 0, sizeof(flash) );
 			flash.hModel = pi->flashModel;
-			if( pi->currentWeapon == WP_RAILGUN ) {
-				Byte4Copy( pi->c1RGBA, flash.shaderRGBA );
-			}
-			else {
-				Byte4Copy( colorWhite, flash.shaderRGBA );
-			}
+			Byte4Copy( pi->c1RGBA, flash.shaderRGBA );
 			VectorCopy( origin, flash.lightingOrigin );
 			UI_PositionEntityOnTag( &flash, &gun, pi->weaponModel, "tag_flash");
 			flash.renderfx = renderfx;
