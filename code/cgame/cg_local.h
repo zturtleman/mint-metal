@@ -319,6 +319,8 @@ typedef struct localEntity_s {
 
 	refEntity_t		refEntity;		
 
+	int				groundEntityNum;
+
 	int				firstPersonEntity; // don't render in firstPersonEntity's first person view
 
 	int				localClients; // 0 means all, else check if localClients & (1<<lc)
@@ -1337,6 +1339,7 @@ extern	vmCvar_t		cg_noVoiceText;
 #endif
 extern  vmCvar_t		cg_scorePlum;
 extern	vmCvar_t		cg_smoothClients;
+extern	vmCvar_t		pmove_overbounce;
 extern	vmCvar_t		pmove_fixed;
 extern	vmCvar_t		pmove_msec;
 //extern	vmCvar_t		cg_pmove_fixed;
@@ -1370,6 +1373,7 @@ extern	vmCvar_t		cg_fadeExplosions;
 extern	vmCvar_t		cg_skybox;
 extern	vmCvar_t		cg_drawScores;
 extern	vmCvar_t		cg_oldBubbles;
+extern	vmCvar_t		cg_smoothBodySink;
 extern	vmCvar_t		ui_stretch;
 #ifdef MISSIONPACK
 extern	vmCvar_t		cg_redTeamName;

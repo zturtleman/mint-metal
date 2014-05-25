@@ -2041,12 +2041,11 @@ CG_PlayerFloatSprite
 Float a sprite over the player's head
 ===============
 */
-static void CG_PlayerFloatSprite( centity_t *cent, int rf, qhandle_t shader ) {
+static void CG_PlayerFloatSprite( vec3_t origin, int rf, qhandle_t shader ) {
 	refEntity_t		ent;
 
 	memset( &ent, 0, sizeof( ent ) );
-	VectorCopy( cent->lerpOrigin, ent.origin );
-	ent.origin[2] += 48;
+	VectorCopy( origin, ent.origin );
 	ent.reType = RT_SPRITE;
 	ent.customShader = shader;
 	ent.radius = 10;
@@ -2067,13 +2066,23 @@ CG_PlayerSprites
 Float sprites over the player's head
 ===============
 */
-static void CG_PlayerSprites( centity_t *cent ) {
-	int		friendFlags, awardFlags;
+static void CG_PlayerSprites( centity_t *cent, const refEntity_t *parent ) {
+	int		friendFlags, awardFlags, thirdPersonFlags;
 	int		team;
+	vec3_t	origin;
+
+	VectorCopy( parent->origin, origin );
+	origin[2] += 42;
 
 	if ( cent->currentState.number == cg.cur_ps->clientNum ) {
 		// current client's team sprite should only be shown in mirrors
 		friendFlags = RF_ONLY_MIRROR;
+
+		if ( !cg.cur_lc->renderingThirdPerson ) {
+			thirdPersonFlags = RF_ONLY_MIRROR;
+		} else {
+			thirdPersonFlags = 0;
+		}
 
 		// if first person or drawing awards on HUD, only show your award sprites in mirrors
 		if ( !cg.cur_lc->renderingThirdPerson || cg_draw2D.integer ) {
@@ -2082,46 +2091,46 @@ static void CG_PlayerSprites( centity_t *cent ) {
 			awardFlags = 0;
 		}
 	} else {
-		friendFlags = awardFlags = 0;
+		friendFlags = awardFlags = thirdPersonFlags = 0;
 	}
 
 	if ( cent->currentState.eFlags & EF_CONNECTION ) {
-		CG_PlayerFloatSprite( cent, 0, cgs.media.connectionShader );
+		CG_PlayerFloatSprite( origin, thirdPersonFlags, cgs.media.connectionShader );
 		return;
 	}
 
 	if ( cent->currentState.eFlags & EF_TALK ) {
-		CG_PlayerFloatSprite( cent, 0, cgs.media.balloonShader );
+		CG_PlayerFloatSprite( origin, thirdPersonFlags, cgs.media.balloonShader );
 		return;
 	}
 
 	if ( cent->currentState.eFlags & EF_AWARD_IMPRESSIVE ) {
-		CG_PlayerFloatSprite( cent, awardFlags, cgs.media.medalImpressive );
+		CG_PlayerFloatSprite( origin, awardFlags, cgs.media.medalImpressive );
 		return;
 	}
 
 	if ( cent->currentState.eFlags & EF_AWARD_EXCELLENT ) {
-		CG_PlayerFloatSprite( cent, awardFlags, cgs.media.medalExcellent );
+		CG_PlayerFloatSprite( origin, awardFlags, cgs.media.medalExcellent );
 		return;
 	}
 
 	if ( cent->currentState.eFlags & EF_AWARD_GAUNTLET ) {
-		CG_PlayerFloatSprite( cent, awardFlags, cgs.media.medalGauntlet );
+		CG_PlayerFloatSprite( origin, awardFlags, cgs.media.medalGauntlet );
 		return;
 	}
 
 	if ( cent->currentState.eFlags & EF_AWARD_DEFEND ) {
-		CG_PlayerFloatSprite( cent, awardFlags, cgs.media.medalDefend );
+		CG_PlayerFloatSprite( origin, awardFlags, cgs.media.medalDefend );
 		return;
 	}
 
 	if ( cent->currentState.eFlags & EF_AWARD_ASSIST ) {
-		CG_PlayerFloatSprite( cent, awardFlags, cgs.media.medalAssist );
+		CG_PlayerFloatSprite( origin, awardFlags, cgs.media.medalAssist );
 		return;
 	}
 
 	if ( cent->currentState.eFlags & EF_AWARD_CAP ) {
-		CG_PlayerFloatSprite( cent, awardFlags, cgs.media.medalCapture );
+		CG_PlayerFloatSprite( origin, awardFlags, cgs.media.medalCapture );
 		return;
 	}
 
@@ -2130,7 +2139,7 @@ static void CG_PlayerSprites( centity_t *cent ) {
 		cg.cur_ps->persistant[PERS_TEAM] == team &&
 		cgs.gametype >= GT_TEAM) {
 		if (cg_drawFriend.integer) {
-			CG_PlayerFloatSprite( cent, friendFlags, cgs.media.friendShader );
+			CG_PlayerFloatSprite( origin, friendFlags, cgs.media.friendShader );
 		}
 		return;
 	}
@@ -2146,7 +2155,7 @@ Returns the Z component of the surface being shadowed
 ===============
 */
 #define	SHADOW_DISTANCE		128
-static qboolean CG_PlayerShadow( centity_t *cent, vec3_t start, float *shadowPlane ) {
+static qboolean CG_PlayerShadow( centity_t *cent, vec3_t start, float alphaMult, float *shadowPlane ) {
 	vec3_t		end, mins = {-8, -8, 0}, maxs = {8, 8, 2};
 	trace_t		trace;
 	float		alpha;
@@ -2180,7 +2189,7 @@ static qboolean CG_PlayerShadow( centity_t *cent, vec3_t start, float *shadowPla
 	}
 
 	// fade the shadow out with height
-	alpha = 1.0 - trace.fraction;
+	alpha = ( 1.0 - trace.fraction ) * alphaMult;
 
 	// hack / FPE - bogus planes?
 	//assert( DotProduct( trace.plane.normal, trace.plane.normal ) != 0.0f ) 
@@ -2379,6 +2388,37 @@ int CG_LightVerts( vec3_t normal, int numVerts, polyVert_t *verts )
 
 /*
 ===============
+CG_Corpse
+===============
+*/
+#define BODY_SINK_DIST 15
+void CG_Corpse( centity_t *cent, int clientNum, float *bodySinkOffset, float *shadowAlpha ) {
+	float offset;
+
+	// After sitting around for five seconds, fall into the ground and dissapear.
+	if ( cg.time - cent->currentState.pos.trTime > BODY_SINK_DELAY ) {
+		if ( cg_smoothBodySink.integer ) {
+			float sinkFrac;
+
+			sinkFrac = ( cg.time - cent->currentState.pos.trTime - BODY_SINK_DELAY ) / (float)BODY_SINK_TIME;
+			offset = sinkFrac * BODY_SINK_DIST;
+
+			*shadowAlpha = 1.0f - sinkFrac;
+		} else {
+			// snap time to move in ( BODY_SINK_TIME / BODY_SINK_DIST ) msec jumps
+			offset = ( cg.time - cent->currentState.pos.trTime - BODY_SINK_DELAY ) / (int)( (float)BODY_SINK_TIME / BODY_SINK_DIST );
+			*shadowAlpha = 1;
+		}
+	} else {
+		offset = 0;
+		*shadowAlpha = 1;
+	}
+
+	*bodySinkOffset = offset;
+}
+
+/*
+===============
 CG_Player
 ===============
 */
@@ -2393,6 +2433,8 @@ void CG_Player( centity_t *cent ) {
 	float			shadowPlane;
 	refEntity_t		shadowRef;
 	vec3_t			shadowOrigin;
+	float			shadowAlpha;
+	float			bodySinkOffset;
 #ifdef MISSIONPACK
 	refEntity_t		skull;
 	refEntity_t		powerup;
@@ -2447,8 +2489,12 @@ void CG_Player( centity_t *cent ) {
 	CG_PlayerAnimation( cent, &legs.oldframe, &legs.frame, &legs.backlerp,
 		 &torso.oldframe, &torso.frame, &torso.backlerp );
 
-	// add the talk baloon or disconnect icon
-	CG_PlayerSprites( cent );
+	if ( cent->currentState.number != clientNum ) {
+		CG_Corpse( cent, clientNum, &bodySinkOffset, &shadowAlpha );
+	} else {
+		bodySinkOffset = 0;
+		shadowAlpha = 1;
+	}
 
 	// cast shadow from torso origin
 	memcpy(&shadowRef, &torso, sizeof(shadowRef));
@@ -2463,7 +2509,10 @@ void CG_Player( centity_t *cent ) {
 	}
 
 	// add the shadow
-	shadow = CG_PlayerShadow( cent, shadowOrigin, &shadowPlane );
+	shadow = CG_PlayerShadow( cent, shadowOrigin, shadowAlpha, &shadowPlane );
+
+	// have corpse sink after shadow, so shadow doesn't disappear when origin goes into ground
+	cent->lerpOrigin[2] -= bodySinkOffset;
 
 	// add a water splash if partially in and out of water
 	CG_PlayerSplash( cent );
@@ -2515,6 +2564,9 @@ void CG_Player( centity_t *cent ) {
 	torso.renderfx = renderfx;
 
 	CG_AddRefEntityWithPowerups( &torso, &cent->currentState );
+
+	// add the talk baloon or disconnect icon
+	CG_PlayerSprites( cent, &torso );
 
 #ifdef MISSIONPACK
 	if ( cent->currentState.eFlags & EF_KAMIKAZE ) {

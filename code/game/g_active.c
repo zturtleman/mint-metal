@@ -337,7 +337,7 @@ void SpectatorThink( gentity_t *ent, usercmd_t *ucmd ) {
 		pm.ps = &client->ps;
 		pm.cmd = *ucmd;
 		pm.tracemask = MASK_PLAYERSOLID & ~CONTENTS_BODY;	// spectators can fly through bodies
-		if (client->ps.capsule) {
+		if (client->ps.collisionType == CT_CAPSULE) {
 			pm.trace = trap_TraceCapsule;
 		} else {
 			pm.trace = trap_Trace;
@@ -920,7 +920,7 @@ void ClientThink_real( gentity_t *ent ) {
 	else {
 		pm.tracemask = MASK_PLAYERSOLID;
 	}
-	if (client->ps.capsule) {
+	if (client->ps.collisionType == CT_CAPSULE) {
 		pm.trace = trap_TraceCapsule;
 	} else {
 		pm.trace = trap_Trace;
@@ -931,6 +931,8 @@ void ClientThink_real( gentity_t *ent ) {
 
 	pm.pmove_fixed = pmove_fixed.integer | client->pers.pmoveFixed;
 	pm.pmove_msec = pmove_msec.integer;
+
+	pm.pmove_overbounce = pmove_overbounce.integer;
 
 	VectorCopy( client->ps.origin, client->oldOrigin );
 

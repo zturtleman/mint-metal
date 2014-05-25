@@ -35,17 +35,39 @@ Suite 120, Rockville, Maryland 20850 USA.
 // A user mod should never modify this file
 
 #define PRODUCT_NAME				"Spearmint"
+
+// Keep this in-sync with VERSION in Makefile.
+#ifndef PRODUCT_VERSION
+	#define PRODUCT_VERSION			"Alpha"
+#endif
+
+// Settings directory name
 #define HOMEPATH_NAME_UNIX			".spearmint"
 #define HOMEPATH_NAME_WIN			"Spearmint"
 #define HOMEPATH_NAME_MACOSX		HOMEPATH_NAME_WIN
-#define GAMENAME_FOR_MASTER			"Spearmint"	// must NOT contain whitespace
 
+// Separates games in server browser. Must NOT contain whitespace (dpmaster will reject the game servers).
+// Change this if not compatible with Spearmint games aka cannot play them (such as if you break VM compatibility).
+#define GAMENAME_FOR_MASTER			"Spearmint"
+
+// Game's engine settings for compatibility and other information needed before loading CGame VM.
+// Probably don't need to change this, but if you break compatiblity feel free to give it a less stupid name.
+#define GAMESETTINGS				"mint-game.settings"
+
+// Prefix for game and cgame virtual machines. Example: vm/PREFIXcgame.qvm, PREFIXcgame_x86.dll
+// Change this if you break VM API compatibility with Spearmint.
+// You'll also need to change VM_PREFIX in game code Makefile.
+#define VM_PREFIX					"mint-"
+
+// Prefix for renderer native libraries. Example: PREFIXopengl1_x86.dll
+// Change this if you break renderer compatibility with Spearmint.
+// You'll also need to change RENDERER_PREFIX in Makefile.
+#define RENDERER_PREFIX				"mint-renderer-"
+
+// Default game to load (default fs_game value).
+// You can change this and it won't break network compatiblity.
 #ifndef BASEGAME
 	#define BASEGAME				"baseq3"
-#endif
-
-#ifndef PRODUCT_VERSION
-	#define PRODUCT_VERSION "Alpha"
 #endif
 
 // In the future if the client-server protocol is modified, this may allow old and new engines to play together
@@ -1036,7 +1058,7 @@ struct cvar_s {
 	char			*name;
 	char			*string;
 	char			*resetString;		// cvar_restart will reset to this value
-	char			*overriddenResetString;	// the reset string as defined by code, set when resetString is overridden by gameconfig.txt
+	char			*overriddenResetString;	// the reset string as defined by code, set when resetString is overridden by Cvar_SetDefault
 	char			*latchedString;		// for CVAR_LATCH vars
 	int				flags;
 	qboolean	explicitSet;		// cvar has been explicitly set
@@ -1133,6 +1155,14 @@ typedef enum {
 
 	TT_NUM_TRACE_TYPES
 } traceType_t;
+
+typedef enum {
+	CT_AABB,
+	CT_CAPSULE,
+	CT_SUBMODEL,
+
+	CT_NUM_COLLISION_TYPES
+} collisionType_t;
 
 // a trace is returned when a box is swept through the world
 typedef struct {
@@ -1281,11 +1311,9 @@ typedef struct sharedEntityState_s {
 	int		contents;		// CONTENTS_TRIGGER, CONTENTS_SOLID, CONTENTS_BODY, etc
 							// a non-solid entity should set to 0
 
-	qboolean	capsule;	// if true, use capsule instead of bbox for clipping against this ent
-
-	qboolean	bmodel;		// if true, modelindex is an inline model number
-							// if false, assume an explicit mins / maxs bounding box
-							// only set by trap_SetBrushModel
+	collisionType_t	collisionType;	// if CT_SUBMODEL, modelindex is an inline model number. only set by trap_SetBrushModel
+									// if CT_CAPSULE, use capsule instead of bbox for clipping against this ent
+									// else (CT_AABB), assume an explicit mins / maxs bounding box
 
 	int		modelindex;
 
@@ -1391,3 +1419,4 @@ typedef enum {
 #define LUMA( red, green, blue ) ( 0.2126f * ( red ) + 0.7152f * ( green ) + 0.0722f * ( blue ) )
 
 #endif	// __Q_SHARED_H
+

@@ -40,9 +40,7 @@ Suite 120, Rockville, Maryland 20850 USA.
 // the "gameversion" client command will print this plus compile date
 #define	GAMEVERSION	MODDIR
 
-#define BODY_QUEUE_SIZE		8
-
-#define INFINITE			1000000
+#define BODY_QUEUE_SIZE		64
 
 #define	FRAMETIME			100					// msec
 #define	CARNAGE_REWARD_TIME	3000
@@ -776,6 +774,7 @@ extern	vmCvar_t	g_cubeTimeout;
 extern	vmCvar_t	g_redteam;
 extern	vmCvar_t	g_blueteam;
 extern	vmCvar_t	g_smoothClients;
+extern	vmCvar_t	pmove_overbounce;
 extern	vmCvar_t	pmove_fixed;
 extern	vmCvar_t	pmove_msec;
 extern	vmCvar_t	g_rankings;
