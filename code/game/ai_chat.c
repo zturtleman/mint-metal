@@ -74,13 +74,9 @@ BotNumActivePlayers
 int BotNumActivePlayers(void) {
 	int i, num;
 	char buf[MAX_INFO_STRING];
-	static int maxclients;
-
-	if (!maxclients)
-		maxclients = trap_Cvar_VariableIntegerValue("sv_maxclients");
 
 	num = 0;
-	for (i = 0; i < maxclients && i < MAX_CLIENTS; i++) {
+	for (i = 0; i < level.maxclients; i++) {
 		trap_GetConfigstring(CS_PLAYERS+i, buf, sizeof(buf));
 		//if no config string or no name
 		if (!strlen(buf) || !strlen(Info_ValueForKey(buf, "n"))) continue;
@@ -100,14 +96,10 @@ BotIsFirstInRankings
 int BotIsFirstInRankings(bot_state_t *bs) {
 	int i, score;
 	char buf[MAX_INFO_STRING];
-	static int maxclients;
 	playerState_t ps;
 
-	if (!maxclients)
-		maxclients = trap_Cvar_VariableIntegerValue("sv_maxclients");
-
 	score = bs->cur_ps.persistant[PERS_SCORE];
-	for (i = 0; i < maxclients && i < MAX_CLIENTS; i++) {
+	for (i = 0; i < level.maxclients; i++) {
 		trap_GetConfigstring(CS_PLAYERS+i, buf, sizeof(buf));
 		//if no config string or no name
 		if (!strlen(buf) || !strlen(Info_ValueForKey(buf, "n"))) continue;
@@ -129,14 +121,10 @@ BotIsLastInRankings
 int BotIsLastInRankings(bot_state_t *bs) {
 	int i, score;
 	char buf[MAX_INFO_STRING];
-	static int maxclients;
 	playerState_t ps;
 
-	if (!maxclients)
-		maxclients = trap_Cvar_VariableIntegerValue("sv_maxclients");
-
 	score = bs->cur_ps.persistant[PERS_SCORE];
-	for (i = 0; i < maxclients && i < MAX_CLIENTS; i++) {
+	for (i = 0; i < level.maxclients; i++) {
 		trap_GetConfigstring(CS_PLAYERS+i, buf, sizeof(buf));
 		//if no config string or no name
 		if (!strlen(buf) || !strlen(Info_ValueForKey(buf, "n"))) continue;
@@ -159,15 +147,11 @@ char *BotFirstClientInRankings(void) {
 	int i, bestscore, bestclient;
 	char buf[MAX_INFO_STRING];
 	static char name[32];
-	static int maxclients;
 	playerState_t ps;
-
-	if (!maxclients)
-		maxclients = trap_Cvar_VariableIntegerValue("sv_maxclients");
 
 	bestscore = -999999;
 	bestclient = 0;
-	for (i = 0; i < maxclients && i < MAX_CLIENTS; i++) {
+	for (i = 0; i < level.maxclients; i++) {
 		trap_GetConfigstring(CS_PLAYERS+i, buf, sizeof(buf));
 		//if no config string or no name
 		if (!strlen(buf) || !strlen(Info_ValueForKey(buf, "n"))) continue;
@@ -192,15 +176,11 @@ char *BotLastClientInRankings(void) {
 	int i, worstscore, bestclient;
 	char buf[MAX_INFO_STRING];
 	static char name[32];
-	static int maxclients;
 	playerState_t ps;
-
-	if (!maxclients)
-		maxclients = trap_Cvar_VariableIntegerValue("sv_maxclients");
 
 	worstscore = 999999;
 	bestclient = 0;
-	for (i = 0; i < maxclients && i < MAX_CLIENTS; i++) {
+	for (i = 0; i < level.maxclients; i++) {
 		trap_GetConfigstring(CS_PLAYERS+i, buf, sizeof(buf));
 		//if no config string or no name
 		if (!strlen(buf) || !strlen(Info_ValueForKey(buf, "n"))) continue;
@@ -225,15 +205,11 @@ char *BotRandomOpponentName(bot_state_t *bs) {
 	int i, count;
 	char buf[MAX_INFO_STRING];
 	int opponents[MAX_CLIENTS], numopponents;
-	static int maxclients;
 	static char name[32];
-
-	if (!maxclients)
-		maxclients = trap_Cvar_VariableIntegerValue("sv_maxclients");
 
 	numopponents = 0;
 	opponents[0] = 0;
-	for (i = 0; i < maxclients && i < MAX_CLIENTS; i++) {
+	for (i = 0; i < level.maxclients; i++) {
 		if (i == bs->client) continue;
 		//
 		trap_GetConfigstring(CS_PLAYERS+i, buf, sizeof(buf));
@@ -283,32 +259,70 @@ char *BotMapTitle(void) {
 BotWeaponNameForMeansOfDeath
 ==================
 */
-
 char *BotWeaponNameForMeansOfDeath(int mod) {
+	weapon_t	weapon;
+	gitem_t		*item;
+
 	switch(mod) {
-		case MOD_SHOTGUN: return "Shotgun";
-		case MOD_GAUNTLET: return "Gauntlet";
-		case MOD_MACHINEGUN: return "Machinegun";
+		case MOD_SHOTGUN:
+			weapon = WP_SHOTGUN;
+			break;
+		case MOD_GAUNTLET:
+			weapon = WP_GAUNTLET;
+			break;
+		case MOD_MACHINEGUN:
+			weapon = WP_MACHINEGUN;
+			break;
 		case MOD_GRENADE:
-		case MOD_GRENADE_SPLASH: return "Grenade Launcher";
+		case MOD_GRENADE_SPLASH:
+			weapon = WP_GRENADE_LAUNCHER;
+			break;
 		case MOD_ROCKET:
-		case MOD_ROCKET_SPLASH: return "Rocket Launcher";
+		case MOD_ROCKET_SPLASH:
+			weapon = WP_ROCKET_LAUNCHER;
+			break;
 		case MOD_PLASMA:
-		case MOD_PLASMA_SPLASH: return "Plasmagun";
-		case MOD_RAILGUN: return "Railgun";
-		case MOD_LIGHTNING: return "Lightning Gun";
+		case MOD_PLASMA_SPLASH:
+			weapon = WP_PLASMAGUN;
+			break;
+		case MOD_RAILGUN:
+			weapon = WP_RAILGUN;
+			break;
+		case MOD_LIGHTNING:
+			weapon = WP_LIGHTNING;
+			break;
 		case MOD_BFG:
-		case MOD_BFG_SPLASH: return "BFG10K";
+		case MOD_BFG_SPLASH:
+			weapon = WP_BFG;
+			break;
 #ifdef MISSIONPACK
-		case MOD_NAIL: return "Nailgun";
-		case MOD_CHAINGUN: return "Chaingun";
-		case MOD_PROXIMITY_MINE: return "Proximity Launcher";
-		case MOD_KAMIKAZE: return "Kamikaze";
-		case MOD_JUICED: return "Prox mine";
+		case MOD_NAIL:
+			weapon = WP_NAILGUN;
+			break;
+		case MOD_CHAINGUN:
+			weapon = WP_CHAINGUN;
+			break;
+		case MOD_PROXIMITY_MINE:
+			weapon = WP_PROX_LAUNCHER;
+			break;
+		case MOD_KAMIKAZE:
+			return "Kamikaze";
+		case MOD_JUICED:
+			return "Prox mine";
 #endif
-		case MOD_GRAPPLE: return "Grapple";
-		default: return "[unknown weapon]";
+		case MOD_GRAPPLE:
+			return "Grapple";
+		default:
+			return "[unknown weapon]";
 	}
+
+	item = BG_FindItemForWeapon( weapon );
+
+	if ( item ) {
+		return item->pickup_name;
+	}
+
+	return "[unknown weapon]";
 }
 
 /*
@@ -318,28 +332,27 @@ BotRandomWeaponName
 */
 char *BotRandomWeaponName(void) {
 	int rnd;
+	gitem_t	*item;
 
-#ifdef MISSIONPACK
-	rnd = random() * 11.9;
+#if 0
+	rnd = 1 + random() * ( (float)WP_NUM_WEAPONS - 1.1f );
 #else
-	rnd = random() * 8.9;
-#endif
-	switch(rnd) {
-		case 0: return "Gauntlet";
-		case 1: return "Shotgun";
-		case 2: return "Machinegun";
-		case 3: return "Grenade Launcher";
-		case 4: return "Rocket Launcher";
-		case 5: return "Plasmagun";
-		case 6: return "Railgun";
-		case 7: return "Lightning Gun";
-#ifdef MISSIONPACK
-		case 8: return "Nailgun";
-		case 9: return "Chaingun";
-		case 10: return "Proximity Launcher";
-#endif
-		default: return "BFG10K";
+	// skip grapple
+	rnd = 1 + random() * ( (float)WP_NUM_WEAPONS - 2.1f );
+
+	// only happens if there is a weapon after grapple, like in Team Arena
+	if ( rnd >= WP_GRAPPLING_HOOK ) {
+		rnd++;
 	}
+#endif
+
+	item = BG_FindItemForWeapon( rnd );
+
+	if ( item ) {
+		return item->pickup_name;
+	}
+
+	return "[unknown weapon]";
 }
 
 /*

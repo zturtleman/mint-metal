@@ -39,8 +39,8 @@ Suite 120, Rockville, Maryland 20850 USA.
 // Additional shared traps in bg_public.h
 
 void	trap_LocateGameData( gentity_t *gEnts, int numGEntities, int sizeofGEntity_t, playerState_t *gameClients, int sizeofGameClient );
-void	trap_SetNetFields( int entityStateSize, vmNetField_t *entityStateFields, int numEntityStateFields,
-						   int playerStateSize, vmNetField_t *playerStateFields, int numPlayerStateFields );
+void	trap_SetNetFields( int entityStateSize, int entityNetworkSize, vmNetField_t *entityStateFields, int numEntityStateFields,
+						   int playerStateSize, int playerNetworkSize, vmNetField_t *playerStateFields, int numPlayerStateFields );
 void	trap_DropClient( int clientNum, const char *reason );
 void	trap_SendServerCommandEx( int connectionNum, int localPlayerNum, const char *text );
 void	trap_SetConfigstring( int num, const char *string );
@@ -49,7 +49,7 @@ void	trap_SetConfigstringRestrictions( int num, const clientList_t *clientList )
 void	trap_GetUserinfo( int num, char *buffer, int bufferSize );
 void	trap_SetUserinfo( int num, const char *buffer );
 void	trap_GetServerinfo( char *buffer, int bufferSize );
-void	trap_SetBrushModel( gentity_t *ent, const char *name );
+void	trap_GetBrushBounds( int modelindex, vec3_t mins, vec3_t maxs );
 void	trap_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
 void	trap_TraceCapsule( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
 void	trap_ClipToEntities( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );

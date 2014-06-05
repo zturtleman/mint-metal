@@ -164,9 +164,10 @@ void trap_LocateGameData( gentity_t *gEnts, int numGEntities, int sizeofGEntity_
 	syscall( G_LOCATE_GAME_DATA, gEnts, numGEntities, sizeofGEntity_t, clients, sizeofGClient );
 }
 
-void trap_SetNetFields( int entityStateSize, vmNetField_t *entityStateFields, int numEntityStateFields,
-						int playerStateSize, vmNetField_t *playerStateFields, int numPlayerStateFields ) {
-	syscall( G_SET_NET_FIELDS, entityStateSize, entityStateFields, numEntityStateFields, playerStateSize, playerStateFields, numPlayerStateFields );
+void trap_SetNetFields( int entityStateSize, int entityNetworkSize, vmNetField_t *entityStateFields, int numEntityStateFields,
+						int playerStateSize, int playerNetworkSize, vmNetField_t *playerStateFields, int numPlayerStateFields ) {
+	syscall( G_SET_NET_FIELDS,  entityStateSize, entityNetworkSize, entityStateFields, numEntityStateFields,
+								playerStateSize, playerNetworkSize, playerStateFields, numPlayerStateFields );
 }
 
 void trap_DropClient( int clientNum, const char *reason ) {
@@ -201,8 +202,8 @@ void trap_GetServerinfo( char *buffer, int bufferSize ) {
 	syscall( G_GET_SERVERINFO, buffer, bufferSize );
 }
 
-void trap_SetBrushModel( gentity_t *ent, const char *name ) {
-	syscall( G_SET_BRUSH_MODEL, ent, name );
+void trap_GetBrushBounds( int modelindex, vec3_t mins, vec3_t maxs ) {
+	syscall( G_GET_BRUSH_BOUNDS, modelindex, mins, maxs );
 }
 
 void trap_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask ) {

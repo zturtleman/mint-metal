@@ -51,6 +51,7 @@ void CG_Refresh( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback
 static char *CG_VoIPString( int localClientNum );
 static int CG_MousePosition( int localClientNum );
 static void CG_SetMousePosition( int localClientNum, int x, int y );
+static void CG_UpdateGlconfig( void );
 
 
 /*
@@ -118,6 +119,9 @@ Q_EXPORT intptr_t vmMain( int command, int arg0, int arg1, int arg2, int arg3, i
 		return 0;
 	case CG_CREATE_USER_CMD:
 		return (intptr_t)CG_CreateUserCmd(arg0, arg1, arg2, IntAsFloat(arg3), IntAsFloat(arg4), arg5);
+	case CG_UPDATE_GLCONFIG:
+		CG_UpdateGlconfig();
+		return 0;
 	default:
 		CG_Error( "cgame vmMain: unknown command %i", command );
 		break;
@@ -2212,7 +2216,7 @@ static const char *CG_FeederItemText(float feederID, int index, int column, qhan
 				}
 		  break;
 			case 2:
-				if ( cg.snap->pss[0].stats[ STAT_CLIENTS_READY ] & ( 1 << sp->client ) ) {
+				if ( Com_ClientListContains( &cg.readyPlayers, sp->client ) ) {
 					return "Ready";
 				}
 				if (team == -1) {
@@ -2477,12 +2481,7 @@ void CG_Init( connstate_t state, int maxSplitView, int playVideo ) {
 	cgs.media.nodrawShader		= trap_R_RegisterShaderEx( "nodraw", LIGHTMAP_NONE, qtrue );
 
 	// get the rendering configuration from the client system
-	trap_GetGlconfig( &cgs.glconfig );
-
-	// Viewport scale and offset
-	cg.viewport = 0;
-	cg.numViewports = 1;
-	CG_CalcVrect();
+	CG_UpdateGlconfig();
 
 	CG_ConsoleInit();
 
@@ -2567,8 +2566,8 @@ void CG_Ingame_Init( int serverMessageNum, int serverCommandSequence, int maxSpl
 	cgs.levelStartTime = atoi( s );
 
 	trap_SetMapTitle( CG_ConfigString( CS_MESSAGE ) );
-	trap_SetNetFields( sizeof (entityState_t), bg_entityStateFields, bg_numEntityStateFields,
-					   sizeof (playerState_t), bg_playerStateFields, bg_numPlayerStateFields );
+	trap_SetNetFields( sizeof (entityState_t), sizeof (entityState_t) - sizeof (int), bg_entityStateFields, bg_numEntityStateFields,
+					   sizeof (playerState_t), 0, bg_playerStateFields, bg_numPlayerStateFields );
 
 
 	CG_ParseServerinfo();
@@ -3132,3 +3131,20 @@ static char *CG_VoIPString( int localClientNum ) {
 
 	return voipString;
 }
+
+/*
+================
+CG_UpdateGlconfig
+================
+*/
+static void CG_UpdateGlconfig( void ) {
+	trap_GetGlconfig( &cgs.glconfig );
+
+	if ( cg.connState != CA_ACTIVE ) {
+		// Viewport scale and offset
+		cg.viewport = 0;
+		cg.numViewports = 1;
+		CG_CalcVrect();
+	}
+}
+
