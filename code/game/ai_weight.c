@@ -40,9 +40,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "g_local.h"
 #include "../botlib/botlib.h"
 #include "../botlib/be_aas.h"
-#include "../botlib/be_ai_chat.h"
 //
 #include "ai_char.h"
+#include "ai_chat_sys.h"
 #include "ai_ea.h"
 #include "ai_gen.h"
 #include "ai_goal.h"
@@ -170,7 +170,7 @@ void FreeWeightConfig2(weightconfig_t *config)
 //===========================================================================
 void FreeWeightConfig(weightconfig_t *config)
 {
-	if (!BotLibVarGetValue("bot_reloadcharacters")) return;
+	if (!bot_reloadcharacters.integer) return;
 	FreeWeightConfig2(config);
 } //end of the function FreeWeightConfig
 //===========================================================================
@@ -337,7 +337,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 
 	starttime = trap_Milliseconds();
 
-	if (!BotLibVarGetValue("bot_reloadcharacters"))
+	if (!bot_reloadcharacters.integer)
 	{
 		avail = -1;
 		for( n = 0; n < MAX_WEIGHT_FILES; n++ )
@@ -372,7 +372,7 @@ weightconfig_t *ReadWeightConfig(char *filename)
 		return NULL;
 	} //end if
 	//
-	if (!BotLibVarGetValue("bot_reloadcharacters"))
+	if (!bot_reloadcharacters.integer)
 	{
 		config = &weightFileList[avail];
 	}

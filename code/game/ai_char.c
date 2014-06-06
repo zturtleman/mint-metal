@@ -40,9 +40,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "g_local.h"
 #include "../botlib/botlib.h"
 #include "../botlib/be_aas.h"
-#include "../botlib/be_ai_chat.h"
 //
 #include "ai_char.h"
+#include "ai_chat_sys.h"
 #include "ai_ea.h"
 #include "ai_gen.h"
 #include "ai_goal.h"
@@ -188,7 +188,7 @@ void BotFreeCharacter2(int handle)
 //========================================================================
 void BotFreeCharacter(int handle)
 {
-	if (!BotLibVarGetValue("bot_reloadcharacters")) return;
+	if (!bot_reloadcharacters.integer) return;
 	BotFreeCharacter2(handle);
 } //end of the function BotFreeCharacter
 //===========================================================================
@@ -493,7 +493,7 @@ int BotLoadCharacterSkill(char *charfile, float skill)
 	int ch, defaultch;
 
 	defaultch = BotLoadCachedCharacter(DEFAULT_CHARACTER, skill, qfalse);
-	ch = BotLoadCachedCharacter(charfile, skill, BotLibVarGetValue("bot_reloadcharacters"));
+	ch = BotLoadCachedCharacter(charfile, skill, bot_reloadcharacters.integer);
 
 	if (defaultch && ch)
 	{

@@ -38,6 +38,8 @@ Suite 120, Rockville, Maryland 20850 USA.
  *
  *****************************************************************************/
 
+#define BOTFILESBASEFOLDER		"botfiles"
+
 #define CTF
 
 #define MAX_ITEMS					256
@@ -336,3 +338,4 @@ int		BotTeamLeader(bot_state_t *bs);
 extern vmCvar_t bot_developer;
 extern vmCvar_t bot_shownodechanges;
 extern vmCvar_t bot_showteamgoals;
+extern vmCvar_t bot_reloadcharacters;

@@ -29,11 +29,11 @@ Suite 120, Rockville, Maryland 20850 USA.
 */
 //
 /*****************************************************************************
- * name:		be_ai_chat.h
+ * name:		ai_chat_sys.h
  *
  * desc:		char AI
  *
- * $Archive: /source/code/botlib/be_ai_chat.h $
+ * $Archive: /source/code/game/ai_chat_sys.h $
  *
  *****************************************************************************/
 
@@ -48,6 +48,10 @@ Suite 120, Rockville, Maryland 20850 USA.
 #define CHAT_ALL					0
 #define CHAT_TEAM					1
 #define CHAT_TELL					2
+
+//console message types
+#define CMS_NORMAL				0
+#define CMS_CHAT				1
 
 //a console message
 typedef struct bot_consolemessage_s
@@ -99,7 +103,7 @@ int BotReplyChat(int chatstate, char *message, int mcontext, int vcontext, char 
 //returns the length of the currently selected chat message
 int BotChatLength(int chatstate);
 //enters the selected chat message
-void BotEnterChat(int chatstate, int clientto, int sendto);
+void BotEnterChat(int chatstate, int playerto, int sendto);
 //get the chat message ready to be output
 void BotGetChatMessage(int chatstate, char *buf, int size);
 //checks if the first string contains the second one, returns index into first string or -1 if not found
@@ -117,5 +121,4 @@ int BotLoadChatFile(int chatstate, char *chatfile, char *chatname);
 //store the gender of the bot in the chat state
 void BotSetChatGender(int chatstate, int gender);
 //store the bot name in the chat state
-void BotSetChatName(int chatstate, char *name, int client);
-
+void BotSetChatName(int chatstate, char *name, int playernum);

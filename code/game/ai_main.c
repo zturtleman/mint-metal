@@ -42,9 +42,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "g_local.h"
 #include "../botlib/botlib.h"
 #include "../botlib/be_aas.h"
-#include "../botlib/be_ai_chat.h"
 //
 #include "ai_char.h"
+#include "ai_chat_sys.h"
 #include "ai_ea.h"
 #include "ai_gen.h"
 #include "ai_goal.h"
@@ -96,6 +96,7 @@ vmCvar_t bot_interbreedchar;
 vmCvar_t bot_interbreedbots;
 vmCvar_t bot_interbreedcycle;
 vmCvar_t bot_interbreedwrite;
+vmCvar_t bot_reloadcharacters;
 
 
 void ExitLevel( void );
@@ -255,7 +256,7 @@ void QDECL BotAI_BotInitialChat( bot_state_t *bs, char *type, ... ) {
 
 	mcontext = BotSynonymContext(bs);
 
-	trap_BotInitialChat( bs->cs, type, mcontext, vars[0], vars[1], vars[2], vars[3], vars[4], vars[5], vars[6], vars[7] );
+	BotInitialChat( bs->cs, type, mcontext, vars[0], vars[1], vars[2], vars[3], vars[4], vars[5], vars[6], vars[7] );
 }
 
 
@@ -623,7 +624,7 @@ void BotInterbreeding(void) {
 		}
 	}
 	//make sure all item weight configs are reloaded and Not shared
-	trap_BotLibVarSet("bot_reloadcharacters", "1");
+	trap_Cvar_SetValue("bot_reloadcharacters", 1);
 	//add a number of bots using the desired bot character
 	for (i = 0; i < bot_interbreedbots.integer; i++) {
 		trap_Cmd_ExecuteText( EXEC_INSERT, va("addbot %s 4 free %i %s%d\n",
@@ -783,8 +784,8 @@ void BotChangeViewAngles(bot_state_t *bs, float thinktime) {
 	if (bs->ideal_viewangles[PITCH] > 180) bs->ideal_viewangles[PITCH] -= 360;
 	//
 	if (bs->enemy >= 0) {
-		factor = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_FACTOR, 0.01f, 1);
-		maxchange = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_MAXCHANGE, 1, 1800);
+		factor = Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_FACTOR, 0.01f, 1);
+		maxchange = Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_MAXCHANGE, 1, 1800);
 	}
 	else {
 		factor = 0.05f;
@@ -1028,19 +1029,19 @@ int BotAI(int client, float thinktime) {
 			//remove first and last quote from the chat message
 			memmove(args, args+1, strlen(args));
 			args[strlen(args)-1] = '\0';
-			trap_BotQueueConsoleMessage(bs->cs, CMS_NORMAL, args);
+			BotQueueConsoleMessage(bs->cs, CMS_NORMAL, args);
 		}
 		else if (!Q_stricmp(buf, "chat") || !Q_stricmp(buf, "tell")) {
 			//remove first and last quote from the chat message
 			memmove(args, args+1, strlen(args));
 			args[strlen(args)-1] = '\0';
-			trap_BotQueueConsoleMessage(bs->cs, CMS_CHAT, args);
+			BotQueueConsoleMessage(bs->cs, CMS_CHAT, args);
 		}
 		else if (!Q_stricmp(buf, "tchat")) {
 			//remove first and last quote from the chat message
 			memmove(args, args+1, strlen(args));
 			args[strlen(args)-1] = '\0';
-			trap_BotQueueConsoleMessage(bs->cs, CMS_CHAT, args);
+			BotQueueConsoleMessage(bs->cs, CMS_CHAT, args);
 		}
 #ifdef MISSIONPACK
 		else if (!Q_stricmp(buf, "vchat")) {
@@ -1204,7 +1205,7 @@ int BotAISetupClient(int client, struct bot_settings_s *settings, qboolean resta
 	}
 
 	//load the bot character
-	bs->character = trap_BotLoadCharacter(settings->characterfile, settings->skill);
+	bs->character = BotLoadCharacter(settings->characterfile, settings->skill);
 	if (!bs->character) {
 		BotAI_Print(PRT_FATAL, "couldn't load skill %f from %s\n", settings->skill, settings->characterfile);
 		return qfalse;
@@ -1214,7 +1215,7 @@ int BotAISetupClient(int client, struct bot_settings_s *settings, qboolean resta
 	//allocate a goal state
 	bs->gs = BotAllocGoalState(client);
 	//load the item weights
-	trap_Characteristic_String(bs->character, CHARACTERISTIC_ITEMWEIGHTS, filename, MAX_PATH);
+	Characteristic_String(bs->character, CHARACTERISTIC_ITEMWEIGHTS, filename, MAX_PATH);
 	errnum = BotLoadItemWeights(bs->gs, filename);
 	if (errnum != BLERR_NOERROR) {
 		BotFreeGoalState(bs->gs);
@@ -1224,7 +1225,7 @@ int BotAISetupClient(int client, struct bot_settings_s *settings, qboolean resta
 	//allocate a weapon state
 	bs->ws = BotAllocWeaponState(client);
 	//load the weapon weights
-	trap_Characteristic_String(bs->character, CHARACTERISTIC_WEAPONWEIGHTS, filename, MAX_PATH);
+	Characteristic_String(bs->character, CHARACTERISTIC_WEAPONWEIGHTS, filename, MAX_PATH);
 	errnum = BotLoadWeaponWeights(bs->ws, filename);
 	if (errnum != BLERR_NOERROR) {
 		BotFreeGoalState(bs->gs);
@@ -1233,24 +1234,24 @@ int BotAISetupClient(int client, struct bot_settings_s *settings, qboolean resta
 		return qfalse;
 	}
 	//allocate a chat state
-	bs->cs = trap_BotAllocChatState();
+	bs->cs = BotAllocChatState();
 	//load the chat file
-	trap_Characteristic_String(bs->character, CHARACTERISTIC_CHAT_FILE, filename, MAX_PATH);
-	trap_Characteristic_String(bs->character, CHARACTERISTIC_CHAT_NAME, name, MAX_PATH);
-	errnum = trap_BotLoadChatFile(bs->cs, filename, name);
+	Characteristic_String(bs->character, CHARACTERISTIC_CHAT_FILE, filename, MAX_PATH);
+	Characteristic_String(bs->character, CHARACTERISTIC_CHAT_NAME, name, MAX_PATH);
+	errnum = BotLoadChatFile(bs->cs, filename, name);
 	if (errnum != BLERR_NOERROR) {
-		trap_BotFreeChatState(bs->cs);
+		BotFreeChatState(bs->cs);
 		BotFreeGoalState(bs->gs);
 		BotFreeWeaponState(bs->ws);
-		BotAI_Print(PRT_FATAL, "trap_BotLoadChatFile failed\n");
+		BotAI_Print(PRT_FATAL, "BotLoadChatFile failed\n");
 		return qfalse;
 	}
 	//get the gender characteristic
-	trap_Characteristic_String(bs->character, CHARACTERISTIC_GENDER, gender, MAX_PATH);
+	Characteristic_String(bs->character, CHARACTERISTIC_GENDER, gender, MAX_PATH);
 	//set the chat gender
-	if (*gender == 'f' || *gender == 'F') trap_BotSetChatGender(bs->cs, CHAT_GENDERFEMALE);
-	else if (*gender == 'm' || *gender == 'M') trap_BotSetChatGender(bs->cs, CHAT_GENDERMALE);
-	else trap_BotSetChatGender(bs->cs, CHAT_GENDERLESS);
+	if (*gender == 'f' || *gender == 'F') BotSetChatGender(bs->cs, CHAT_GENDERFEMALE);
+	else if (*gender == 'm' || *gender == 'M') BotSetChatGender(bs->cs, CHAT_GENDERMALE);
+	else BotSetChatGender(bs->cs, CHAT_GENDERLESS);
 
 	bs->inuse = qtrue;
 	bs->client = client;
@@ -1258,13 +1259,12 @@ int BotAISetupClient(int client, struct bot_settings_s *settings, qboolean resta
 	bs->setupcount = 4;
 	bs->entergame_time = FloatTime();
 	bs->ms = BotAllocMoveState(client);
-	bs->walker = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_WALKER, 0, 1);
+	bs->walker = Characteristic_BFloat(bs->character, CHARACTERISTIC_WALKER, 0, 1);
 	bs->revenge_enemy = -1;
 	numbots++;
 
 	trap_Cvar_Update( &bot_testichat );
 	if (bot_testichat.integer) {
-		trap_BotLibVarSet("bot_testichat", "1");
 		BotChatTest(bs);
 	}
 	//NOTE: reschedule the bot thinking
@@ -1300,7 +1300,7 @@ int BotAIShutdownClient(int client, qboolean restart) {
 	}
 
 	if (BotChat_ExitGame(bs)) {
-		trap_BotEnterChat(bs->cs, bs->client, CHAT_ALL);
+		BotEnterChat(bs->cs, bs->client, CHAT_ALL);
 	}
 
 	trap_SetConfigstring(CS_BOTINFO + bs->client, "");
@@ -1309,11 +1309,11 @@ int BotAIShutdownClient(int client, qboolean restart) {
 	//free the goal state
 	BotFreeGoalState(bs->gs);
 	//free the chat file
-	trap_BotFreeChatState(bs->cs);
+	BotFreeChatState(bs->cs);
 	//free the weapon weights
 	BotFreeWeaponState(bs->ws);
 	//free the bot character
-	trap_BotFreeCharacter(bs->character);
+	BotFreeCharacter(bs->character);
 	//
 	BotFreeWaypoints(bs->checkpoints);
 	BotFreeWaypoints(bs->patrolpoints);
@@ -1448,6 +1448,7 @@ int BotAIStartFrame(int time) {
 	trap_Cvar_Update(&bot_offhandgrapple);
 	trap_Cvar_Update(&bot_shownodechanges);
 	trap_Cvar_Update(&bot_showteamgoals);
+	trap_Cvar_Update(&bot_reloadcharacters);
 
 	BotUpdateInfoConfigStrings();
 
@@ -1653,9 +1654,6 @@ int BotInitLibrary(void) {
 	trap_BotLibVarSet("bot_developer", bot_developer.string);
 	trap_Cvar_VariableStringBuffer("logfile", buf, sizeof(buf));
 	trap_BotLibVarSet("log", buf);
-	//no chatting
-	trap_Cvar_VariableStringBuffer("bot_nochat", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("nochat", buf);
 	//visualize jump pads
 	trap_Cvar_VariableStringBuffer("bot_visualizejumppads", buf, sizeof(buf));
 	if (strlen(buf)) trap_BotLibVarSet("bot_visualizejumppads", buf);
@@ -1674,10 +1672,6 @@ int BotInitLibrary(void) {
 	//
 	trap_Cvar_VariableStringBuffer("bot_saveroutingcache", buf, sizeof(buf));
 	if (strlen(buf)) trap_BotLibVarSet("saveroutingcache", buf);
-	//reload instead of cache bot character files
-	trap_Cvar_VariableStringBuffer("bot_reloadcharacters", buf, sizeof(buf));
-	if (!strlen(buf)) strcpy(buf, "0");
-	trap_BotLibVarSet("bot_reloadcharacters", buf);
 	//
 #ifdef MISSIONPACK
 	trap_PC_AddGlobalDefine("MISSIONPACK");
@@ -1704,6 +1698,7 @@ int BotAISetup( int restart ) {
 	trap_Cvar_Register(&bot_developer, "bot_developer", "0", CVAR_CHEAT);
 	trap_Cvar_Register(&bot_shownodechanges, "bot_shownodechanges", "0", CVAR_CHEAT);
 	trap_Cvar_Register(&bot_showteamgoals, "bot_showteamgoals", "0", CVAR_CHEAT);
+	trap_Cvar_Register(&bot_reloadcharacters, "bot_reloadcharacters", "0", 0);
 	trap_Cvar_Register(&bot_interbreedchar, "bot_interbreedchar", "", 0);
 	trap_Cvar_Register(&bot_interbreedbots, "bot_interbreedbots", "10", 0);
 	trap_Cvar_Register(&bot_interbreedcycle, "bot_interbreedcycle", "20", 0);
@@ -1728,6 +1723,8 @@ int BotAISetup( int restart ) {
 	if (errnum != BLERR_NOERROR) return qfalse;
 	errnum = BotSetupMoveAI();		//ai_move.c
 	if (errnum != BLERR_NOERROR) return qfalse;
+	errnum = BotSetupChatAI();		//ai_chat_sys.c
+	if (errnum != BLERR_NOERROR) return errnum;
 	return qtrue;
 }
 
@@ -1760,6 +1757,7 @@ int BotAIShutdown( int restart ) {
 	BotShutdownGoalAI();		//ai_goal.c
 	BotShutdownWeaponAI();		//ai_weap.c
 	BotShutdownWeights();		//ai_weight.c
+	BotShutdownChatAI();		//ai_chat_sys.c
 	//shut down bot elemantary actions
 	EA_Shutdown();
 
