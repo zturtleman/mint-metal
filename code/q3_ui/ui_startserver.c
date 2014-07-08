@@ -768,7 +768,7 @@ ServerOptions_Start
 static void ServerOptions_Start( void ) {
 	int		timelimit;
 	int		fraglimit;
-	int		maxclients;
+	int		maxplayers;
 	int		localPlayerBits;
 	int		publicserver;
 	int		dedicated;
@@ -789,15 +789,15 @@ static void ServerOptions_Start( void ) {
 	pure		 = s_serveroptions.pure.curvalue;
 	skill		 = s_serveroptions.botSkill.curvalue + 1;
 
-	//set maxclients
-	for( n = 0, maxclients = 0; n < PLAYER_SLOTS; n++ ) {
+	//set maxplayers
+	for( n = 0, maxplayers = 0; n < PLAYER_SLOTS; n++ ) {
 		if( s_serveroptions.playerType[n].curvalue == PT_CLOSED ) {
 			continue;
 		}
 		if( (s_serveroptions.playerType[n].curvalue == PT_BOT) && (s_serveroptions.botNameBuffers[n][0] == 0) ) {
 			continue;
 		}
-		maxclients++;
+		maxplayers++;
 	}
 	for( n = 0, localPlayerBits = 1; n < UI_MaxSplitView(); n++ ) {
 		if( s_serveroptions.playerType[n].curvalue != PT_HUMAN ) {
@@ -806,7 +806,6 @@ static void ServerOptions_Start( void ) {
 		localPlayerBits |= (1<<n);
 	}
 
-	// Set the number of local clients
 	trap_Cvar_SetValue( "cl_localPlayers", localPlayerBits );
 
 	switch( s_serveroptions.gametype ) {
@@ -854,7 +853,7 @@ static void ServerOptions_Start( void ) {
 #endif
 	}
 
-	trap_Cvar_SetValue( "sv_maxclients", Com_Clamp( 0, 12, maxclients ) );
+	trap_Cvar_SetValue( "sv_maxclients", Com_Clamp( 0, 12, maxplayers ) );
 	if( s_serveroptions.multiplayer ) {
 		trap_Cvar_SetValue( "ui_publicServer", Com_Clamp( 0, 1, publicserver ) );
 		trap_Cvar_SetValue( "sv_public", Com_Clamp( 0, 1, publicserver ) );
@@ -873,7 +872,7 @@ static void ServerOptions_Start( void ) {
 	if( dedicated == 0 && s_serveroptions.gametype >= GT_TEAM ) {
 		for ( n = 0; n < UI_MaxSplitView(); ++n ) {
 			if ( n == 0 || s_serveroptions.playerType[n].curvalue == PT_HUMAN ) {
-				trap_Cvar_Set( Com_LocalClientCvarName( n, "teampref" ), playerTeam_list[s_serveroptions.playerTeam[n].curvalue] );
+				trap_Cvar_Set( Com_LocalPlayerCvarName( n, "teampref" ), playerTeam_list[s_serveroptions.playerTeam[n].curvalue] );
 			}
 		}
 	}
@@ -933,7 +932,7 @@ static void ServerOptions_InitPlayerItems( void ) {
 	// if not a dedicated server, first slot is reserved for the human on the server
 	if( s_serveroptions.dedicated.curvalue == 0 ) {
 		for (n = 0; n < UI_MaxSplitView(); n++) {
-			trap_Cvar_VariableStringBuffer( Com_LocalClientCvarName(n, "name"), s_serveroptions.playerNameBuffers[n], sizeof(s_serveroptions.playerNameBuffers[n]) );
+			trap_Cvar_VariableStringBuffer( Com_LocalPlayerCvarName(n, "name"), s_serveroptions.playerNameBuffers[n], sizeof(s_serveroptions.playerNameBuffers[n]) );
 			Q_CleanStr( s_serveroptions.playerNameBuffers[n] );
 
 			s_serveroptions.playerType[n].curvalue = PT_OPEN;

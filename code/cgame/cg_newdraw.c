@@ -66,55 +66,55 @@ void CG_SetPrintString(q3print_t type, const char *p) {
 }
 
 void CG_CheckOrderPending( int localPlayerNum ) {
-	cglc_t *localClient;
+	localPlayer_t *localPlayer;
 
 	if (cgs.gametype < GT_CTF) {
 		return;
 	}
 
-	localClient = &cg.localClients[localPlayerNum];
+	localPlayer = &cg.localPlayers[localPlayerNum];
 
-	if ( localClient->clientNum == -1 ) {
+	if ( localPlayer->playerNum == -1 ) {
 		return;
 	}
 
-	if (localClient->orderPending) {
-		//clientInfo_t *ci;
+	if (localPlayer->orderPending) {
+		//playerInfo_t *pi;
 		const char *p1, *p2;
 		char	b[128];
-		int		clientNum;
+		int		playerNum;
 		int		team;
 		int		selectedPlayer;
 
 		p1 = p2 = NULL;
 		b[0] = '\0';
 
-		clientNum = cg.snap->pss[localPlayerNum].clientNum;
+		playerNum = cg.snap->pss[localPlayerNum].playerNum;
 		team = cg.snap->pss[localPlayerNum].persistant[PERS_TEAM];
 		selectedPlayer = cg_currentSelectedPlayer[localPlayerNum].integer;
 
-		//ci = cgs.clientinfo + sortedTeamPlayers[team][selectedPlayer];
+		//pi = cgs.playerinfo + sortedTeamPlayers[team][selectedPlayer];
 
-		switch (localClient->currentOrder) {
+		switch (localPlayer->currentOrder) {
 			case TEAMTASK_OFFENSE:
 				p1 = VOICECHAT_ONOFFENSE;
 				p2 = VOICECHAT_OFFENSE;
-				Com_sprintf( b, sizeof ( b ), "%s; wait; %s", Com_LocalClientCvarName( localPlayerNum, "+button7" ), Com_LocalClientCvarName( localPlayerNum, "-button7" ) );
+				Com_sprintf( b, sizeof ( b ), "%s; wait; %s", Com_LocalPlayerCvarName( localPlayerNum, "+button7" ), Com_LocalPlayerCvarName( localPlayerNum, "-button7" ) );
 			break;
 			case TEAMTASK_DEFENSE:
 				p1 = VOICECHAT_ONDEFENSE;
 				p2 = VOICECHAT_DEFEND;
-				Com_sprintf( b, sizeof ( b ), "%s; wait; %s", Com_LocalClientCvarName( localPlayerNum, "+button8" ), Com_LocalClientCvarName( localPlayerNum, "-button8" ) );
+				Com_sprintf( b, sizeof ( b ), "%s; wait; %s", Com_LocalPlayerCvarName( localPlayerNum, "+button8" ), Com_LocalPlayerCvarName( localPlayerNum, "-button8" ) );
 			break;					
 			case TEAMTASK_PATROL:
 				p1 = VOICECHAT_ONPATROL;
 				p2 = VOICECHAT_PATROL;
-				Com_sprintf( b, sizeof ( b ), "%s; wait; %s", Com_LocalClientCvarName( localPlayerNum, "+button9" ), Com_LocalClientCvarName( localPlayerNum, "-button9" ) );
+				Com_sprintf( b, sizeof ( b ), "%s; wait; %s", Com_LocalPlayerCvarName( localPlayerNum, "+button9" ), Com_LocalPlayerCvarName( localPlayerNum, "-button9" ) );
 			break;
 			case TEAMTASK_FOLLOW: 
 				p1 = VOICECHAT_ONFOLLOW;
 				p2 = VOICECHAT_FOLLOWME;
-				Com_sprintf( b, sizeof ( b ), "%s; wait; %s", Com_LocalClientCvarName( localPlayerNum, "+button10" ), Com_LocalClientCvarName( localPlayerNum, "-button10" ) );
+				Com_sprintf( b, sizeof ( b ), "%s; wait; %s", Com_LocalPlayerCvarName( localPlayerNum, "+button10" ), Com_LocalPlayerCvarName( localPlayerNum, "-button10" ) );
 			break;
 			case TEAMTASK_CAMP:
 				p1 = VOICECHAT_ONCAMPING;
@@ -132,22 +132,22 @@ void CG_CheckOrderPending( int localPlayerNum ) {
 
 		if (selectedPlayer == numSortedTeamPlayers[team]) {
 			// to everyone
-			trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), p2));
+			trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), p2));
 		} else {
 			// for the player self
-			if (sortedTeamPlayers[team][selectedPlayer] == clientNum && p1) {
-				trap_Cmd_ExecuteText(EXEC_APPEND, va("%s %i\n", Com_LocalClientCvarName(localPlayerNum, "teamtask"), localClient->currentOrder));
-				//trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "say_team"), p2));
-				trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), p1));
+			if (sortedTeamPlayers[team][selectedPlayer] == playerNum && p1) {
+				trap_Cmd_ExecuteText(EXEC_APPEND, va("%s %i\n", Com_LocalPlayerCvarName(localPlayerNum, "teamtask"), localPlayer->currentOrder));
+				//trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "say_team"), p2));
+				trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), p1));
 			} else if (p2) {
-				//trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %s, %s\n", Com_LocalClientCvarName(localPlayerNum, "say_team"), ci->name,p));
-				trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %d %s\n", Com_LocalClientCvarName(localPlayerNum, "vtell"), sortedTeamPlayers[team][selectedPlayer], p2));
+				//trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %s, %s\n", Com_LocalPlayerCvarName(localPlayerNum, "say_team"), pi->name,p));
+				trap_Cmd_ExecuteText(EXEC_APPEND, va("cmd %s %d %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vtell"), sortedTeamPlayers[team][selectedPlayer], p2));
 			}
 		}
 		if (b[0]) {
 			trap_Cmd_ExecuteText(EXEC_APPEND, b);
 		}
-		localClient->orderPending = qfalse;
+		localPlayer->orderPending = qfalse;
 	}
 }
 
@@ -157,14 +157,14 @@ static void CG_SetSelectedPlayerName( int localPlayerNum ) {
 	team = cg.snap->pss[ localPlayerNum ].persistant[PERS_TEAM];
 
 	if (cg_currentSelectedPlayer[ localPlayerNum ].integer >= 0 && cg_currentSelectedPlayer[ localPlayerNum ].integer < numSortedTeamPlayers[team]) {
-		clientInfo_t *ci = cgs.clientinfo + sortedTeamPlayers[team][cg_currentSelectedPlayer[ localPlayerNum ].integer];
-		if (ci) {
-			trap_Cvar_Set(Com_LocalClientCvarName(localPlayerNum, "cg_selectedPlayerName"), ci->name);
-			trap_Cvar_SetValue(Com_LocalClientCvarName(localPlayerNum, "cg_selectedPlayer"), sortedTeamPlayers[team][cg_currentSelectedPlayer[ localPlayerNum ].integer]);
-			cg.localClients[ localPlayerNum ].currentOrder = ci->teamTask;
+		playerInfo_t *pi = cgs.playerinfo + sortedTeamPlayers[team][cg_currentSelectedPlayer[ localPlayerNum ].integer];
+		if (pi) {
+			trap_Cvar_Set(Com_LocalPlayerCvarName(localPlayerNum, "cg_selectedPlayerName"), pi->name);
+			trap_Cvar_SetValue(Com_LocalPlayerCvarName(localPlayerNum, "cg_selectedPlayer"), sortedTeamPlayers[team][cg_currentSelectedPlayer[ localPlayerNum ].integer]);
+			cg.localPlayers[ localPlayerNum ].currentOrder = pi->teamTask;
 		}
 	} else {
-		trap_Cvar_Set(Com_LocalClientCvarName(localPlayerNum, "cg_selectedPlayerName"), "Everyone");
+		trap_Cvar_Set(Com_LocalPlayerCvarName(localPlayerNum, "cg_selectedPlayerName"), "Everyone");
 	}
 }
 int CG_GetSelectedPlayer( int localPlayerNum ) {
@@ -262,7 +262,7 @@ static void CG_DrawPlayerAmmoIcon( rectDef_t *rect, qboolean draw2D ) {
 	vec3_t		angles;
 	vec3_t		origin;
 
-	cent = &cg_entities[cg.cur_ps->clientNum];
+	cent = &cg_entities[cg.cur_ps->playerNum];
 
 	if ( draw2D || (!cg_draw3dIcons.integer && cg_drawIcons.integer) ) {
 		qhandle_t	icon;
@@ -288,7 +288,7 @@ static void CG_DrawPlayerAmmoValue(rectDef_t *rect, float scale, vec4_t color, q
 	centity_t	*cent;
 	playerState_t	*ps;
 
-	cent = &cg_entities[cg.cur_ps->clientNum];
+	cent = &cg_entities[cg.cur_ps->playerNum];
 	ps = cg.cur_ps;
 
 	if ( cent->currentState.weapon ) {
@@ -358,25 +358,25 @@ static void CG_DrawPlayerHead(rectDef_t *rect, qboolean draw2D) {
 	angles[YAW] = cg.cur_lc->headStartYaw + ( cg.cur_lc->headEndYaw - cg.cur_lc->headStartYaw ) * frac;
 	angles[PITCH] = cg.cur_lc->headStartPitch + ( cg.cur_lc->headEndPitch - cg.cur_lc->headStartPitch ) * frac;
 
-	CG_DrawHead( x, rect->y, rect->w, rect->h, cg.cur_ps->clientNum, angles );
+	CG_DrawHead( x, rect->y, rect->w, rect->h, cg.cur_ps->playerNum, angles );
 }
 
 static void CG_DrawSelectedPlayerHealth( rectDef_t *rect, float scale, vec4_t color, qhandle_t shader, int textStyle ) {
-	clientInfo_t *ci;
+	playerInfo_t *pi;
 	int value;
 	char num[16];
 	int team;
 
 	team = cg.cur_ps->persistant[PERS_TEAM];
 
-	ci = cgs.clientinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localClientNum )];
-	if (ci) {
+	pi = cgs.playerinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localPlayerNum )];
+	if (pi) {
 		if (shader) {
 			trap_R_SetColor( color );
 			CG_DrawPic(rect->x, rect->y, rect->w, rect->h, shader);
 			trap_R_SetColor( NULL );
 		} else {
-			Com_sprintf (num, sizeof(num), "%i", ci->health);
+			Com_sprintf (num, sizeof(num), "%i", pi->health);
 			value = CG_Text_Width(num, scale, 0);
 			CG_Text_Paint(rect->x + (rect->w - value) / 2, rect->y + rect->h, scale, color, num, 0, 0, textStyle);
 		}
@@ -384,22 +384,22 @@ static void CG_DrawSelectedPlayerHealth( rectDef_t *rect, float scale, vec4_t co
 }
 
 static void CG_DrawSelectedPlayerArmor( rectDef_t *rect, float scale, vec4_t color, qhandle_t shader, int textStyle ) {
-	clientInfo_t *ci;
+	playerInfo_t *pi;
 	int value;
 	char num[16];
 	int team;
 
 	team = cg.cur_ps->persistant[PERS_TEAM];
-	ci = cgs.clientinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localClientNum )];
+	pi = cgs.playerinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localPlayerNum )];
 
-	if (ci) {
-		if (ci->armor > 0) {
+	if (pi) {
+		if (pi->armor > 0) {
 			if (shader) {
 				trap_R_SetColor( color );
 				CG_DrawPic(rect->x, rect->y, rect->w, rect->h, shader);
 				trap_R_SetColor( NULL );
 			} else {
-				Com_sprintf (num, sizeof(num), "%i", ci->armor);
+				Com_sprintf (num, sizeof(num), "%i", pi->armor);
 				value = CG_Text_Width(num, scale, 0);
 				CG_Text_Paint(rect->x + (rect->w - value) / 2, rect->y + rect->h, scale, color, num, 0, 0, textStyle);
 			}
@@ -439,13 +439,13 @@ qhandle_t CG_StatusHandle(int task) {
 }
 
 static void CG_DrawSelectedPlayerStatus( rectDef_t *rect ) {
-	clientInfo_t *ci;
+	playerInfo_t *pi;
 	int team;
 
 	team = cg.cur_ps->persistant[PERS_TEAM];
-	ci = cgs.clientinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localClientNum )];
+	pi = cgs.playerinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localPlayerNum )];
 
-	if (ci) {
+	if (pi) {
 		qhandle_t h;
 		if (cg.cur_lc->orderPending) {
 			// blink the icon
@@ -454,7 +454,7 @@ static void CG_DrawSelectedPlayerStatus( rectDef_t *rect ) {
 			}
 			h = CG_StatusHandle(cg.cur_lc->currentOrder);
 		}	else {
-			h = CG_StatusHandle(ci->teamTask);
+			h = CG_StatusHandle(pi->teamTask);
 		}
 		CG_DrawPic( rect->x, rect->y, rect->w, rect->h, h );
 	}
@@ -462,33 +462,33 @@ static void CG_DrawSelectedPlayerStatus( rectDef_t *rect ) {
 
 
 static void CG_DrawPlayerStatus( rectDef_t *rect ) {
-	clientInfo_t *ci = &cgs.clientinfo[cg.cur_ps->clientNum];
-	if (ci) {
-		qhandle_t h = CG_StatusHandle(ci->teamTask);
+	playerInfo_t *pi = &cgs.playerinfo[cg.cur_ps->playerNum];
+	if (pi) {
+		qhandle_t h = CG_StatusHandle(pi->teamTask);
 		CG_DrawPic( rect->x, rect->y, rect->w, rect->h, h);
 	}
 }
 
 
 static void CG_DrawSelectedPlayerName( rectDef_t *rect, float scale, vec4_t color, qboolean voice, int textStyle) {
-	clientInfo_t *ci;
+	playerInfo_t *pi;
 	int team;
 
 	team = cg.cur_ps->persistant[PERS_TEAM];
-	ci = cgs.clientinfo + ((voice) ? cg.cur_lc->currentVoiceClient : sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localClientNum )]);
-	if (ci) {
-		CG_Text_Paint(rect->x, rect->y + rect->h, scale, color, ci->name, 0, 0, textStyle);
+	pi = cgs.playerinfo + ((voice) ? cg.cur_lc->currentVoicePlayerNum : sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localPlayerNum )]);
+	if (pi) {
+		CG_Text_Paint(rect->x, rect->y + rect->h, scale, color, pi->name, 0, 0, textStyle);
 	}
 }
 
 static void CG_DrawSelectedPlayerLocation( rectDef_t *rect, float scale, vec4_t color, int textStyle ) {
-	clientInfo_t	*ci;
+	playerInfo_t	*pi;
 	int				team;
 
 	team = cg.cur_ps->persistant[PERS_TEAM];
-	ci = cgs.clientinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localClientNum )];
-	if (ci) {
-		const char *p = CG_ConfigString(CS_LOCATIONS + ci->location);
+	pi = cgs.playerinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localPlayerNum )];
+	if (pi) {
+		const char *p = CG_ConfigString(CS_LOCATIONS + pi->location);
 		if (!p || !*p) {
 			p = "unknown";
 		}
@@ -497,9 +497,9 @@ static void CG_DrawSelectedPlayerLocation( rectDef_t *rect, float scale, vec4_t 
 }
 
 static void CG_DrawPlayerLocation( rectDef_t *rect, float scale, vec4_t color, int textStyle  ) {
-	clientInfo_t *ci = &cgs.clientinfo[cg.cur_ps->clientNum];
-	if (ci) {
-		const char *p = CG_ConfigString(CS_LOCATIONS + ci->location);
+	playerInfo_t *pi = &cgs.playerinfo[cg.cur_ps->playerNum];
+	if (pi) {
+		const char *p = CG_ConfigString(CS_LOCATIONS + pi->location);
 		if (!p || !*p) {
 			p = "unknown";
 		}
@@ -510,14 +510,14 @@ static void CG_DrawPlayerLocation( rectDef_t *rect, float scale, vec4_t color, i
 
 
 static void CG_DrawSelectedPlayerWeapon( rectDef_t *rect ) {
-	clientInfo_t *ci;
+	playerInfo_t *pi;
 	int				team;
 
 	team = cg.cur_ps->persistant[PERS_TEAM];
-	ci = cgs.clientinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localClientNum )];
-	if (ci) {
-		if ( cg_weapons[ci->curWeapon].weaponIcon ) {
-			CG_DrawPic( rect->x, rect->y, rect->w, rect->h, cg_weapons[ci->curWeapon].weaponIcon );
+	pi = cgs.playerinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localPlayerNum )];
+	if (pi) {
+		if ( cg_weapons[pi->curWeapon].weaponIcon ) {
+			CG_DrawPic( rect->x, rect->y, rect->w, rect->h, cg_weapons[pi->curWeapon].weaponIcon );
 		} else {
 			CG_DrawPic( rect->x, rect->y, rect->w, rect->h, cgs.media.deferShader);
 		}
@@ -570,19 +570,19 @@ static void CG_DrawPlayerItem( rectDef_t *rect, float scale, qboolean draw2D) {
 
 
 static void CG_DrawSelectedPlayerPowerup( rectDef_t *rect, qboolean draw2D ) {
-	clientInfo_t *ci;
+	playerInfo_t *pi;
 	int				team;
 	int j;
 	float x, y;
 
 	team = cg.cur_ps->persistant[PERS_TEAM];
-	ci = cgs.clientinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localClientNum )];
-	if (ci) {
+	pi = cgs.playerinfo + sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localPlayerNum )];
+	if (pi) {
 		x = rect->x;
 		y = rect->y;
 
 		for (j = 0; j < PW_NUM_POWERUPS; j++) {
-			if (ci->powerups & (1 << j)) {
+			if (pi->powerups & (1 << j)) {
 				gitem_t	*item;
 				item = BG_FindItemForPowerup( j );
 				if (item) {
@@ -599,18 +599,18 @@ static void CG_DrawSelectedPlayerPowerup( rectDef_t *rect, qboolean draw2D ) {
 
 static void CG_DrawSelectedPlayerHead( rectDef_t *rect, qboolean draw2D, qboolean voice ) {
 	clipHandle_t	cm;
-	clientInfo_t	*ci;
+	playerInfo_t	*pi;
 	int				team;
 	float			len;
 	vec3_t			origin;
 	vec3_t			mins, maxs, angles;
 
 	team = cg.cur_ps->persistant[PERS_TEAM];
-	ci = cgs.clientinfo + ((voice) ? cg.cur_lc->currentVoiceClient : sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localClientNum )]);
+	pi = cgs.playerinfo + ((voice) ? cg.cur_lc->currentVoicePlayerNum : sortedTeamPlayers[team][CG_GetSelectedPlayer( cg.cur_localPlayerNum )]);
 
-	if (ci) {
+	if (pi) {
 		if ( cg_draw3dIcons.integer ) {
-			cm = ci->headModel;
+			cm = pi->headModel;
 			if ( !cm ) {
 				return;
 			}
@@ -627,19 +627,19 @@ static void CG_DrawSelectedPlayerHead( rectDef_t *rect, qboolean draw2D, qboolea
 			origin[0] = len / 0.268;	// len / tan( fov/2 )
 
 			// allow per-model tweaking
-			VectorAdd( origin, ci->headOffset, origin );
+			VectorAdd( origin, pi->headOffset, origin );
 
 			angles[PITCH] = 0;
 			angles[YAW] = 180;
 			angles[ROLL] = 0;
 
-			CG_Draw3DModel( rect->x, rect->y, rect->w, rect->h, ci->headModel, &ci->modelSkin, origin, angles );
+			CG_Draw3DModel( rect->x, rect->y, rect->w, rect->h, pi->headModel, &pi->modelSkin, origin, angles );
 		} else if ( cg_drawIcons.integer ) {
-			CG_DrawPic( rect->x, rect->y, rect->w, rect->h, ci->modelIcon );
+			CG_DrawPic( rect->x, rect->y, rect->w, rect->h, pi->modelIcon );
 		}
 
 		// if they are deferred, draw a cross out
-		if ( ci->deferred ) {
+		if ( pi->deferred ) {
 			CG_DrawPic( rect->x, rect->y, rect->w, rect->h, cgs.media.deferShader );
 		}
 	}
@@ -705,9 +705,9 @@ static void CG_DrawBlueName(rectDef_t *rect, float scale, vec4_t color, int text
 
 static void CG_DrawBlueFlagName(rectDef_t *rect, float scale, vec4_t color, int textStyle ) {
   int i;
-  for ( i = 0 ; i < cgs.maxclients ; i++ ) {
-	  if ( cgs.clientinfo[i].infoValid && cgs.clientinfo[i].team == TEAM_RED  && cgs.clientinfo[i].powerups & ( 1<< PW_BLUEFLAG )) {
-      CG_Text_Paint(rect->x, rect->y + rect->h, scale, color, cgs.clientinfo[i].name, 0, 0, textStyle);
+  for ( i = 0 ; i < cgs.maxplayers ; i++ ) {
+	  if ( cgs.playerinfo[i].infoValid && cgs.playerinfo[i].team == TEAM_RED  && cgs.playerinfo[i].powerups & ( 1<< PW_BLUEFLAG )) {
+      CG_Text_Paint(rect->x, rect->y + rect->h, scale, color, cgs.playerinfo[i].name, 0, 0, textStyle);
       return;
     }
   }
@@ -742,8 +742,8 @@ static void CG_DrawBlueFlagStatus(rectDef_t *rect, qhandle_t shader) {
 
 static void CG_DrawBlueFlagHead(rectDef_t *rect) {
   int i;
-  for ( i = 0 ; i < cgs.maxclients ; i++ ) {
-	  if ( cgs.clientinfo[i].infoValid && cgs.clientinfo[i].team == TEAM_RED  && cgs.clientinfo[i].powerups & ( 1<< PW_BLUEFLAG )) {
+  for ( i = 0 ; i < cgs.maxplayers ; i++ ) {
+	  if ( cgs.playerinfo[i].infoValid && cgs.playerinfo[i].team == TEAM_RED  && cgs.playerinfo[i].powerups & ( 1<< PW_BLUEFLAG )) {
       vec3_t angles;
       VectorClear( angles );
  		  angles[YAW] = 180 + 20 * sin( cg.time / 650.0 );;
@@ -755,9 +755,9 @@ static void CG_DrawBlueFlagHead(rectDef_t *rect) {
 
 static void CG_DrawRedFlagName(rectDef_t *rect, float scale, vec4_t color, int textStyle ) {
   int i;
-  for ( i = 0 ; i < cgs.maxclients ; i++ ) {
-	  if ( cgs.clientinfo[i].infoValid && cgs.clientinfo[i].team == TEAM_BLUE  && cgs.clientinfo[i].powerups & ( 1<< PW_REDFLAG )) {
-      CG_Text_Paint(rect->x, rect->y + rect->h, scale, color, cgs.clientinfo[i].name, 0, 0, textStyle);
+  for ( i = 0 ; i < cgs.maxplayers ; i++ ) {
+	  if ( cgs.playerinfo[i].infoValid && cgs.playerinfo[i].team == TEAM_BLUE  && cgs.playerinfo[i].powerups & ( 1<< PW_REDFLAG )) {
+      CG_Text_Paint(rect->x, rect->y + rect->h, scale, color, cgs.playerinfo[i].name, 0, 0, textStyle);
       return;
     }
   }
@@ -792,8 +792,8 @@ static void CG_DrawRedFlagStatus(rectDef_t *rect, qhandle_t shader) {
 
 static void CG_DrawRedFlagHead(rectDef_t *rect) {
   int i;
-  for ( i = 0 ; i < cgs.maxclients ; i++ ) {
-	  if ( cgs.clientinfo[i].infoValid && cgs.clientinfo[i].team == TEAM_BLUE  && cgs.clientinfo[i].powerups & ( 1<< PW_REDFLAG )) {
+  for ( i = 0 ; i < cgs.maxplayers ; i++ ) {
+	  if ( cgs.playerinfo[i].infoValid && cgs.playerinfo[i].team == TEAM_BLUE  && cgs.playerinfo[i].powerups & ( 1<< PW_REDFLAG )) {
       vec3_t angles;
       VectorClear( angles );
  		  angles[YAW] = 180 + 20 * sin( cg.time / 650.0 );;
@@ -974,20 +974,20 @@ static void CG_DrawAreaPowerUp(rectDef_t *rect, int align, float special, float 
 
 float CG_GetValue(int ownerDraw) {
 	centity_t	*cent;
- 	clientInfo_t *ci;
+ 	playerInfo_t *pi;
 	playerState_t	*ps;
 
 	ps = cg.cur_ps;
-	cent = &cg_entities[ps->clientNum];
+	cent = &cg_entities[ps->playerNum];
 
   switch (ownerDraw) {
   case CG_SELECTEDPLAYER_ARMOR:
-    ci = cgs.clientinfo + sortedTeamPlayers[ps->persistant[PERS_TEAM]][CG_GetSelectedPlayer( cg.cur_localClientNum )];
-    return ci->armor;
+    pi = cgs.playerinfo + sortedTeamPlayers[ps->persistant[PERS_TEAM]][CG_GetSelectedPlayer( cg.cur_localPlayerNum )];
+    return pi->armor;
     break;
   case CG_SELECTEDPLAYER_HEALTH:
-    ci = cgs.clientinfo + sortedTeamPlayers[ps->persistant[PERS_TEAM]][CG_GetSelectedPlayer( cg.cur_localClientNum )];
-    return ci->health;
+    pi = cgs.playerinfo + sortedTeamPlayers[ps->persistant[PERS_TEAM]][CG_GetSelectedPlayer( cg.cur_localPlayerNum )];
+    return pi->health;
     break;
   case CG_PLAYER_ARMOR_VALUE:
 		return ps->stats[STAT_ARMOR];
@@ -1070,11 +1070,11 @@ qboolean CG_YourTeamHasFlag(void) {
 qboolean CG_OwnerDrawVisible(int flags) {
 
 	if (flags & CG_SHOW_TEAMINFO) {
-		return (cg_currentSelectedPlayer[cg.cur_localClientNum].integer == numSortedTeamPlayers[cg.cur_ps->persistant[PERS_TEAM]]);
+		return (cg_currentSelectedPlayer[cg.cur_localPlayerNum].integer == numSortedTeamPlayers[cg.cur_ps->persistant[PERS_TEAM]]);
 	}
 
 	if (flags & CG_SHOW_NOTEAMINFO) {
-		return !(cg_currentSelectedPlayer[cg.cur_localClientNum].integer == numSortedTeamPlayers[cg.cur_ps->persistant[PERS_TEAM]]);
+		return !(cg_currentSelectedPlayer[cg.cur_localPlayerNum].integer == numSortedTeamPlayers[cg.cur_ps->persistant[PERS_TEAM]]);
 	}
 
 	if (flags & CG_SHOW_OTHERTEAMHASFLAG) {
@@ -1327,7 +1327,7 @@ void CG_DrawNewTeamInfo(rectDef_t *rect, float text_x, float text_y, float scale
 	const char *p;
 	vec4_t		hcolor;
 	float pwidth, lwidth, maxx, leftOver;
-	clientInfo_t *ci;
+	playerInfo_t *pi;
 	gitem_t	*item;
 	qhandle_t h;
 	int team;
@@ -1343,9 +1343,9 @@ void CG_DrawNewTeamInfo(rectDef_t *rect, float text_x, float text_y, float scale
 	pwidth = 0;
 	count = (numSortedTeamPlayers[team] > 8) ? 8 : numSortedTeamPlayers[team];
 	for (i = 0; i < count; i++) {
-		ci = cgs.clientinfo + sortedTeamPlayers[team][i];
-		if ( ci->infoValid && ci->team == team) {
-			len = CG_Text_Width( ci->name, scale, 0);
+		pi = cgs.playerinfo + sortedTeamPlayers[team][i];
+		if ( pi->infoValid && pi->team == team) {
+			len = CG_Text_Width( pi->name, scale, 0);
 			if (len > pwidth)
 				pwidth = len;
 		}
@@ -1365,12 +1365,12 @@ void CG_DrawNewTeamInfo(rectDef_t *rect, float text_x, float text_y, float scale
 	y = rect->y;
 
 	for (i = 0; i < count; i++) {
-		ci = cgs.clientinfo + sortedTeamPlayers[team][i];
-		if ( ci->infoValid && ci->team == team) {
+		pi = cgs.playerinfo + sortedTeamPlayers[team][i];
+		if ( pi->infoValid && pi->team == team) {
 
 			xx = rect->x + 1;
 			for (j = 0; j <= PW_NUM_POWERUPS; j++) {
-				if (ci->powerups & (1 << j)) {
+				if (pi->powerups & (1 << j)) {
 
 					item = BG_FindItemForPowerup( j );
 
@@ -1384,11 +1384,11 @@ void CG_DrawNewTeamInfo(rectDef_t *rect, float text_x, float text_y, float scale
 			// FIXME: max of 3 powerups shown properly
 			xx = rect->x + (PIC_WIDTH * 3) + 2;
 
-			CG_GetColorForHealth( ci->health, ci->armor, hcolor );
+			CG_GetColorForHealth( pi->health, pi->armor, hcolor );
 			trap_R_SetColor(hcolor);
 			CG_DrawPic( xx, y + 1, PIC_WIDTH - 2, PIC_WIDTH - 2, cgs.media.heartShader );
 
-			//Com_sprintf (st, sizeof(st), "%3i %3i", ci->health,	ci->armor);
+			//Com_sprintf (st, sizeof(st), "%3i %3i", pi->health,	pi->armor);
 			//CG_Text_Paint(xx, y + text_y, scale, hcolor, st, 0, 0); 
 
 			// draw weapon icon
@@ -1396,8 +1396,8 @@ void CG_DrawNewTeamInfo(rectDef_t *rect, float text_x, float text_y, float scale
 
 // weapon used is not that useful, use the space for task
 #if 0
-			if ( cg_weapons[ci->curWeapon].weaponIcon ) {
-				CG_DrawPic( xx, y, PIC_WIDTH, PIC_WIDTH, cg_weapons[ci->curWeapon].weaponIcon );
+			if ( cg_weapons[pi->curWeapon].weaponIcon ) {
+				CG_DrawPic( xx, y, PIC_WIDTH, PIC_WIDTH, cg_weapons[pi->curWeapon].weaponIcon );
 			} else {
 				CG_DrawPic( xx, y, PIC_WIDTH, PIC_WIDTH, cgs.media.deferShader );
 			}
@@ -1412,7 +1412,7 @@ void CG_DrawNewTeamInfo(rectDef_t *rect, float text_x, float text_y, float scale
 					h = CG_StatusHandle(cg.cur_lc->currentOrder);
 				}
 			}	else {
-				h = CG_StatusHandle(ci->teamTask);
+				h = CG_StatusHandle(pi->teamTask);
 			}
 
 			if (h) {
@@ -1426,9 +1426,9 @@ void CG_DrawNewTeamInfo(rectDef_t *rect, float text_x, float text_y, float scale
 
 
 
-			CG_Text_Paint_Limit(&maxx, xx, y + text_y, scale, color, ci->name, 0, 0); 
+			CG_Text_Paint_Limit(&maxx, xx, y + text_y, scale, color, pi->name, 0, 0); 
 
-			p = CG_ConfigString(CS_LOCATIONS + ci->location);
+			p = CG_ConfigString(CS_LOCATIONS + pi->location);
 			if (!p || !*p) {
 				p = "unknown";
 			}
@@ -1706,7 +1706,7 @@ void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y
 		CG_DrawTeamSpectators(&rect, scale, color, shader);
 		break;
   case CG_TEAMINFO:
-		if (cg_currentSelectedPlayer[cg.cur_localClientNum].integer == numSortedTeamPlayers[cg.cur_ps->persistant[PERS_TEAM]]) {
+		if (cg_currentSelectedPlayer[cg.cur_localPlayerNum].integer == numSortedTeamPlayers[cg.cur_ps->persistant[PERS_TEAM]]) {
 			CG_DrawNewTeamInfo(&rect, text_x, text_y, scale, color, shader);
 		}
 		break;
@@ -1724,11 +1724,11 @@ void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y
   }
 }
 
-void CG_MouseEvent(int localClientNum, int x, int y) {
+void CG_MouseEvent(int localPlayerNum, int x, int y) {
 	int n;
-	cglc_t *lc;
+	localPlayer_t *player;
 
-	if (localClientNum != 0) {
+	if (localPlayerNum != 0) {
 		// Missionpack HUD currently only supports one cursor
 		return;
 	}
@@ -1738,9 +1738,9 @@ void CG_MouseEvent(int localClientNum, int x, int y) {
 	cgDC.cursorx = cgs.cursorX;
 	cgDC.cursory = cgs.cursorY;
 
-	lc = &cg.localClients[0];
+	player = &cg.localPlayers[0];
 
-	if ( (lc->predictedPlayerState.pm_type == PM_NORMAL || lc->predictedPlayerState.pm_type == PM_SPECTATOR) && lc->showScores == qfalse) {
+	if ( (player->predictedPlayerState.pm_type == PM_NORMAL || player->predictedPlayerState.pm_type == PM_SPECTATOR) && player->showScores == qfalse) {
     trap_Key_SetCatcher(0);
 		return;
 	}
@@ -1822,7 +1822,7 @@ void CG_EventHandling(int type) {
 
 
 void CG_KeyEvent(int key, qboolean down) {
-	cglc_t *lc;
+	localPlayer_t *player;
 
 	if (!down) {
 		return;
@@ -1837,9 +1837,9 @@ void CG_KeyEvent(int key, qboolean down) {
 		return;
 	}
 
-	lc = &cg.localClients[0];
+	player = &cg.localPlayers[0];
 
-	if ( lc->predictedPlayerState.pm_type == PM_NORMAL || (lc->predictedPlayerState.pm_type == PM_SPECTATOR && lc->showScores == qfalse)) {
+	if ( player->predictedPlayerState.pm_type == PM_NORMAL || (player->predictedPlayerState.pm_type == PM_SPECTATOR && player->showScores == qfalse)) {
 		CG_EventHandling(CGAME_EVENT_NONE);
     trap_Key_SetCatcher(0);
 		return;
@@ -1864,16 +1864,6 @@ void CG_KeyEvent(int key, qboolean down) {
 	}
 }
 #endif // MISSIONPACK_HUD
-
-int CG_ClientNumFromName(const char *p) {
-  int i;
-  for (i = 0; i < cgs.maxclients; i++) {
-    if (cgs.clientinfo[i].infoValid && Q_stricmp(cgs.clientinfo[i].name, p) == 0) {
-      return i;
-    }
-  }
-  return -1;
-}
 
 void CG_ShowResponseHead(void) {
 #ifdef MISSIONPACK_HUD

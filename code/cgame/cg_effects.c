@@ -462,33 +462,33 @@ void CG_InvulnerabilityJuiced( vec3_t org ) {
 CG_ScorePlum
 ==================
 */
-void CG_ScorePlum( int client, vec3_t org, int score ) {
+void CG_ScorePlum( int playerNum, vec3_t org, int score ) {
 	localEntity_t	*le;
 	refEntity_t		*re;
 	vec3_t			angles;
-	int				lc, localClients;
+	int				i, localPlayerBits;
 	static vec3_t lastPos;
 
-	// only visualize for the client that scored
+	// only visualize for the player that scored
 	if (cg_scorePlum.integer == 0) {
 		return;
 	}
 
-	// Select local clients to show the plum to
-	localClients = 0;
-	for (lc = 0; lc < CG_MaxSplitView(); lc++) {
-		if (cg.localClients[lc].clientNum != -1 && client == cg.snap->pss[lc].clientNum ) {
-			localClients |= (1<<lc);
+	// Select local players to show the plum to
+	localPlayerBits = 0;
+	for (i = 0; i < CG_MaxSplitView(); i++) {
+		if (cg.localPlayers[i].playerNum != -1 && playerNum == cg.snap->pss[i].playerNum ) {
+			localPlayerBits |= (1<<i);
 		}
 	}
 
 	// Not going to be rendered
-	if (!localClients) {
+	if (!localPlayerBits) {
 		return;
 	}
 
 	le = CG_AllocLocalEntity();
-	le->localClients = localClients;
+	le->localPlayerBits = localPlayerBits;
 	le->leFlags = 0;
 	le->leType = LE_SCOREPLUM;
 	le->startTime = cg.time;

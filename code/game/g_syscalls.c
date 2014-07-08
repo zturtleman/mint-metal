@@ -160,8 +160,8 @@ void	trap_Cvar_CheckRange( const char *var_name, float min, float max, qboolean 
 
 
 void trap_LocateGameData( gentity_t *gEnts, int numGEntities, int sizeofGEntity_t,
-						 playerState_t *clients, int sizeofGClient ) {
-	syscall( G_LOCATE_GAME_DATA, gEnts, numGEntities, sizeofGEntity_t, clients, sizeofGClient );
+						 playerState_t *players, int sizeofGamePlayer ) {
+	syscall( G_LOCATE_GAME_DATA, gEnts, numGEntities, sizeofGEntity_t, players, sizeofGamePlayer );
 }
 
 void trap_SetNetFields( int entityStateSize, int entityNetworkSize, vmNetField_t *entityStateFields, int numEntityStateFields,
@@ -170,12 +170,12 @@ void trap_SetNetFields( int entityStateSize, int entityNetworkSize, vmNetField_t
 								playerStateSize, playerNetworkSize, playerStateFields, numPlayerStateFields );
 }
 
-void trap_DropClient( int clientNum, const char *reason ) {
-	syscall( G_DROP_CLIENT, clientNum, reason );
+void trap_DropClient( int playerNum, const char *reason ) {
+	syscall( G_DROP_PLAYER, playerNum, reason );
 }
 
-void trap_SendServerCommandEx( int connectionNum, int localPlayerNum, const char *text ) {
-	syscall( G_SEND_SERVER_COMMAND, connectionNum, localPlayerNum, text );
+void trap_SendServerCommandEx( int clientNum, int localPlayerNum, const char *text ) {
+	syscall( G_SEND_SERVER_COMMAND, clientNum, localPlayerNum, text );
 }
 
 void trap_SetConfigstring( int num, const char *string ) {
@@ -267,12 +267,12 @@ int trap_BotAllocateClient( void ) {
 	return syscall( G_BOT_ALLOCATE_CLIENT );
 }
 
-void trap_BotFreeClient( int clientNum ) {
-	syscall( G_BOT_FREE_CLIENT, clientNum );
+void trap_BotFreeClient( int playerNum ) {
+	syscall( G_BOT_FREE_CLIENT, playerNum );
 }
 
-void trap_GetUsercmd( int clientNum, usercmd_t *cmd ) {
-	syscall( G_GET_USERCMD, clientNum, cmd );
+void trap_GetUsercmd( int playerNum, usercmd_t *cmd ) {
+	syscall( G_GET_USERCMD, playerNum, cmd );
 }
 
 qboolean trap_GetEntityToken( char *buffer, int bufferSize ) {
@@ -358,16 +358,16 @@ int trap_BotLibTest(int parm0, char *parm1, vec3_t parm2, vec3_t parm3) {
 	return syscall( BOTLIB_TEST, parm0, parm1, parm2, parm3 );
 }
 
-int trap_BotGetSnapshotEntity( int clientNum, int sequence ) {
-	return syscall( BOTLIB_GET_SNAPSHOT_ENTITY, clientNum, sequence );
+int trap_BotGetSnapshotEntity( int playerNum, int sequence ) {
+	return syscall( BOTLIB_GET_SNAPSHOT_ENTITY, playerNum, sequence );
 }
 
-int trap_BotGetServerCommand(int clientNum, char *message, int size) {
-	return syscall( BOTLIB_GET_CONSOLE_MESSAGE, clientNum, message, size );
+int trap_BotGetServerCommand(int playerNum, char *message, int size) {
+	return syscall( BOTLIB_GET_CONSOLE_MESSAGE, playerNum, message, size );
 }
 
-void trap_BotUserCommand(int clientNum, usercmd_t *ucmd) {
-	syscall( BOTLIB_USER_COMMAND, clientNum, ucmd );
+void trap_BotUserCommand(int playerNum, usercmd_t *ucmd) {
+	syscall( BOTLIB_USER_COMMAND, playerNum, ucmd );
 }
 
 int trap_AAS_Loaded(void) {
@@ -397,7 +397,7 @@ int trap_AAS_PointReachabilityAreaIndex(vec3_t point) {
 }
 
 void trap_AAS_TraceClientBBox(void /* aas_trace_t */ *trace, vec3_t start, vec3_t end, int presencetype, int passent, int contentmask) {
-	syscall( BOTLIB_AAS_TRACE_CLIENT_BBOX, trace, start, end, presencetype, passent, contentmask );
+	syscall( BOTLIB_AAS_TRACE_PLAYER_BBOX, trace, start, end, presencetype, passent, contentmask );
 }
 
 int trap_AAS_TraceAreas(vec3_t start, vec3_t end, int *areas, vec3_t *points, int maxareas) {
@@ -541,7 +541,7 @@ int trap_AAS_AlternativeRouteGoals(vec3_t start, int startareanum, vec3_t goal, 
 
 
 int trap_AAS_PredictClientMovement(void /* struct aas_clientmove_s */ *move, int entnum, vec3_t origin, int presencetype, int onground, vec3_t velocity, vec3_t cmdmove, int cmdframes, int maxframes, float frametime, int stopevent, int stopareanum, int visualize, int contentmask) {
-	return syscall( BOTLIB_AAS_PREDICT_CLIENT_MOVEMENT, move, entnum, origin, presencetype, onground, velocity, cmdmove, cmdframes, maxframes, PASSFLOAT(frametime), stopevent, stopareanum, visualize, contentmask );
+	return syscall( BOTLIB_AAS_PREDICT_PLAYER_MOVEMENT, move, entnum, origin, presencetype, onground, velocity, cmdmove, cmdframes, maxframes, PASSFLOAT(frametime), stopevent, stopareanum, visualize, contentmask );
 }
 
 int trap_AAS_OnGround(vec3_t origin, int presencetype, int passent, int contentmask) {

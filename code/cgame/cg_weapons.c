@@ -220,7 +220,7 @@ static void CG_NailgunEjectBrass( centity_t *cent ) {
 CG_RailTrail
 ==========================
 */
-void CG_RailTrail (clientInfo_t *ci, vec3_t start, vec3_t end) {
+void CG_RailTrail (playerInfo_t *pi, vec3_t start, vec3_t end) {
 	vec3_t axis[36], move, move2, vec, temp;
 	float  len;
 	int    i, j, skip;
@@ -249,14 +249,14 @@ void CG_RailTrail (clientInfo_t *ci, vec3_t start, vec3_t end) {
 	VectorCopy(start, re->origin);
 	VectorCopy(end, re->oldorigin);
  
-	re->shaderRGBA[0] = ci->color1[0] * 255;
-	re->shaderRGBA[1] = ci->color1[1] * 255;
-	re->shaderRGBA[2] = ci->color1[2] * 255;
+	re->shaderRGBA[0] = pi->color1[0] * 255;
+	re->shaderRGBA[1] = pi->color1[1] * 255;
+	re->shaderRGBA[2] = pi->color1[2] * 255;
 	re->shaderRGBA[3] = 255;
 
-	le->color[0] = ci->color1[0] * 0.75;
-	le->color[1] = ci->color1[1] * 0.75;
-	le->color[2] = ci->color1[2] * 0.75;
+	le->color[0] = pi->color1[0] * 0.75;
+	le->color[1] = pi->color1[1] * 0.75;
+	le->color[2] = pi->color1[2] * 0.75;
 	le->color[3] = 1.0f;
 
 	AxisClear( re->axis );
@@ -302,14 +302,14 @@ void CG_RailTrail (clientInfo_t *ci, vec3_t start, vec3_t end) {
 			re->radius = 1.1f;
 			re->customShader = cgs.media.railRingsShader;
 
-			re->shaderRGBA[0] = ci->color2[0] * 255;
-			re->shaderRGBA[1] = ci->color2[1] * 255;
-			re->shaderRGBA[2] = ci->color2[2] * 255;
+			re->shaderRGBA[0] = pi->color2[0] * 255;
+			re->shaderRGBA[1] = pi->color2[1] * 255;
+			re->shaderRGBA[2] = pi->color2[2] * 255;
 			re->shaderRGBA[3] = 255;
 
-			le->color[0] = ci->color2[0] * 0.75;
-			le->color[1] = ci->color2[1] * 0.75;
-			le->color[2] = ci->color2[2] * 0.75;
+			le->color[0] = pi->color2[0] * 0.75;
+			le->color[1] = pi->color2[1] * 0.75;
+			le->color[2] = pi->color2[2] * 0.75;
 			le->color[3] = 1.0f;
 
 			le->pos.trType = TR_LINEAR;
@@ -878,24 +878,24 @@ CG_MapTorsoToWeaponFrame
 
 =================
 */
-static int CG_MapTorsoToWeaponFrame( clientInfo_t *ci, int frame ) {
+static int CG_MapTorsoToWeaponFrame( playerInfo_t *pi, int frame ) {
 
 	// change weapon
-	if ( frame >= ci->animations[TORSO_DROP].firstFrame 
-		&& frame < ci->animations[TORSO_DROP].firstFrame + 9 ) {
-		return frame - ci->animations[TORSO_DROP].firstFrame + 6;
+	if ( frame >= pi->animations[TORSO_DROP].firstFrame 
+		&& frame < pi->animations[TORSO_DROP].firstFrame + 9 ) {
+		return frame - pi->animations[TORSO_DROP].firstFrame + 6;
 	}
 
 	// stand attack
-	if ( frame >= ci->animations[TORSO_ATTACK].firstFrame 
-		&& frame < ci->animations[TORSO_ATTACK].firstFrame + 6 ) {
-		return 1 + frame - ci->animations[TORSO_ATTACK].firstFrame;
+	if ( frame >= pi->animations[TORSO_ATTACK].firstFrame 
+		&& frame < pi->animations[TORSO_ATTACK].firstFrame + 6 ) {
+		return 1 + frame - pi->animations[TORSO_ATTACK].firstFrame;
 	}
 
 	// stand attack 2
-	if ( frame >= ci->animations[TORSO_ATTACK2].firstFrame 
-		&& frame < ci->animations[TORSO_ATTACK2].firstFrame + 6 ) {
-		return 1 + frame - ci->animations[TORSO_ATTACK2].firstFrame;
+	if ( frame >= pi->animations[TORSO_ATTACK2].firstFrame 
+		&& frame < pi->animations[TORSO_ATTACK2].firstFrame + 6 ) {
+		return 1 + frame - pi->animations[TORSO_ATTACK2].firstFrame;
 	}
 	
 	return 0;
@@ -980,7 +980,7 @@ static void CG_LightningBolt( centity_t *cent, vec3_t origin ) {
 	memset( &beam, 0, sizeof( beam ) );
 
 	// CPMA  "true" lightning
-	if ((cent->currentState.number == cg.cur_lc->predictedPlayerState.clientNum) && (cg_trueLightning.value != 0)) {
+	if ((cent->currentState.number == cg.cur_lc->predictedPlayerState.playerNum) && (cg_trueLightning.value != 0)) {
 		vec3_t angle;
 		int i;
 
@@ -1206,14 +1206,14 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 	weaponInfo_t	*weapon;
 	centity_t	*nonPredictedCent;
 	orientation_t	lerped;
-	clientInfo_t *ci;
+	playerInfo_t *pi;
 
 	weaponNum = cent->currentState.weapon;
 
 	CG_RegisterWeapon( weaponNum );
 	weapon = &cg_weapons[weaponNum];
 
-	ci = &cgs.clientinfo[cent->currentState.clientNum];
+	pi = &cgs.playerinfo[cent->currentState.playerNum];
 
 	// add the weapon
 	memset( &gun, 0, sizeof( gun ) );
@@ -1224,13 +1224,13 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 	// set custom shading for railgun refire rate
 	if( weaponNum == WP_RAILGUN && cent->pe.railFireTime + 1500 > cg.time ) {
 		int scale = 255 * ( cg.time - cent->pe.railFireTime ) / 1500;
-		gun.shaderRGBA[0] = ( ci->c1RGBA[0] * scale ) >> 8;
-		gun.shaderRGBA[1] = ( ci->c1RGBA[1] * scale ) >> 8;
-		gun.shaderRGBA[2] = ( ci->c1RGBA[2] * scale ) >> 8;
+		gun.shaderRGBA[0] = ( pi->c1RGBA[0] * scale ) >> 8;
+		gun.shaderRGBA[1] = ( pi->c1RGBA[1] * scale ) >> 8;
+		gun.shaderRGBA[2] = ( pi->c1RGBA[2] * scale ) >> 8;
 		gun.shaderRGBA[3] = 255;
 	}
 	else {
-		Byte4Copy( ci->c1RGBA, gun.shaderRGBA );
+		Byte4Copy( pi->c1RGBA, gun.shaderRGBA );
 	}
 
 	gun.hModel = weapon->weaponModel;
@@ -1257,9 +1257,9 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 	VectorMA(gun.origin, lerped.origin[0], parent->axis[0], gun.origin);
 
 	// Make weapon appear left-handed for 2 and centered for 3
-	if(ps && cg_drawGun[cg.cur_localClientNum].integer == 2)
+	if(ps && cg_drawGun[cg.cur_localPlayerNum].integer == 2)
 		VectorMA(gun.origin, -lerped.origin[1], parent->axis[1], gun.origin);
-	else if(!ps || cg_drawGun[cg.cur_localClientNum].integer != 3)
+	else if(!ps || cg_drawGun[cg.cur_localPlayerNum].integer != 3)
 	       	VectorMA(gun.origin, lerped.origin[1], parent->axis[1], gun.origin);
 
 	VectorMA(gun.origin, lerped.origin[2], parent->axis[2], gun.origin);
@@ -1288,12 +1288,12 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 	}
 
 	// make sure we aren't looking at cg.cur_lc->predictedPlayerEntity for LG
-	nonPredictedCent = &cg_entities[cent->currentState.clientNum];
+	nonPredictedCent = &cg_entities[cent->currentState.playerNum];
 
-	// if the index of the nonPredictedCent is not the same as the clientNum
+	// if the index of the nonPredictedCent is not the same as the playerNum
 	// then this is a fake player (like on teh single player podiums), so
 	// go ahead and use the cent
-	if( ( nonPredictedCent - cg_entities ) != cent->currentState.clientNum ) {
+	if( ( nonPredictedCent - cg_entities ) != cent->currentState.playerNum ) {
 		nonPredictedCent = cent;
 	}
 
@@ -1324,13 +1324,13 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 	AnglesToAxis( angles, flash.axis );
 
 	// colorize the railgun blast
-	Byte4Copy( ci->c1RGBA, flash.shaderRGBA );
+	Byte4Copy( pi->c1RGBA, flash.shaderRGBA );
 
 	CG_PositionRotatedEntityOnTag( &flash, &gun, weapon->weaponModel, "tag_flash");
 	CG_AddRefEntityWithMinLight( &flash );
 
 	if ( ps || cg.cur_lc->renderingThirdPerson ||
-		cent->currentState.number != cg.cur_lc->predictedPlayerState.clientNum ) {
+		cent->currentState.number != cg.cur_lc->predictedPlayerState.playerNum ) {
 		// add lightning bolt
 		CG_LightningBolt( nonPredictedCent, flash.origin );
 
@@ -1351,7 +1351,7 @@ Add the weapon, and flash for the player's view
 void CG_AddViewWeapon( playerState_t *ps ) {
 	refEntity_t	hand;
 	centity_t	*cent;
-	clientInfo_t	*ci;
+	playerInfo_t	*pi;
 	vec3_t		fovOffset;
 	vec3_t		angles;
 	weaponInfo_t	*weapon;
@@ -1372,14 +1372,14 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 
 
 	// allow the gun to be completely removed
-	if ( !cg_drawGun[cg.cur_localClientNum].integer ) {
+	if ( !cg_drawGun[cg.cur_localPlayerNum].integer ) {
 		vec3_t		origin;
 
 		if ( cg.cur_lc->predictedPlayerState.eFlags & EF_FIRING ) {
 			// special hack for lightning gun...
 			VectorCopy( cg.refdef.vieworg, origin );
 			VectorMA( origin, -8, cg.refdef.viewaxis[2], origin );
-			CG_LightningBolt( &cg_entities[ps->clientNum], origin );
+			CG_LightningBolt( &cg_entities[ps->playerNum], origin );
 		}
 		return;
 	}
@@ -1399,7 +1399,7 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 		fovOffset[0] = -0.2 * ( cg.fov - 90 ) * cg.refdef.fov_x / cg.fov;
 	}
 
-	cent = &cg.cur_lc->predictedPlayerEntity;	// &cg_entities[cg.snap->ps.clientNum];
+	cent = &cg.cur_lc->predictedPlayerEntity;	// &cg_entities[cg.snap->ps.playerNum];
 	CG_RegisterWeapon( ps->weapon );
 	weapon = &cg_weapons[ ps->weapon ];
 
@@ -1420,10 +1420,10 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 		hand.frame = hand.oldframe = cg_gun_frame.integer;
 		hand.backlerp = 0;
 	} else {
-		// get clientinfo for animation map
-		ci = &cgs.clientinfo[ cent->currentState.clientNum ];
-		hand.frame = CG_MapTorsoToWeaponFrame( ci, cent->pe.torso.frame );
-		hand.oldframe = CG_MapTorsoToWeaponFrame( ci, cent->pe.torso.oldFrame );
+		// get playerinfo for animation map
+		pi = &cgs.playerinfo[ cent->currentState.playerNum ];
+		hand.frame = CG_MapTorsoToWeaponFrame( pi, cent->pe.torso.frame );
+		hand.oldframe = CG_MapTorsoToWeaponFrame( pi, cent->pe.torso.oldFrame );
 		hand.backlerp = cent->pe.torso.backlerp;
 	}
 
@@ -1541,40 +1541,40 @@ static qboolean CG_WeaponSelectable( playerState_t *ps, int i ) {
 CG_NextWeapon_f
 ===============
 */
-void CG_NextWeapon_f( int localClient ) {
+void CG_NextWeapon_f( int localPlayerNum ) {
 	int		i;
 	int		original;
 	playerState_t	*ps;
-	cglc_t			*lc;
+	localPlayer_t	*player;
 
-	if ( cg.localClients[localClient].clientNum == -1 ) {
+	if ( cg.localPlayers[localPlayerNum].playerNum == -1 ) {
 		return;
 	}
 
-	ps = &cg.snap->pss[localClient];
-	lc = &cg.localClients[localClient];
+	ps = &cg.snap->pss[localPlayerNum];
+	player = &cg.localPlayers[localPlayerNum];
 
 	if ( ps->pm_flags & PMF_FOLLOW ) {
 		return;
 	}
 
-	lc->weaponSelectTime = cg.time;
-	original = lc->weaponSelect;
+	player->weaponSelectTime = cg.time;
+	original = player->weaponSelect;
 
 	for ( i = 0 ; i < MAX_WEAPONS ; i++ ) {
-		lc->weaponSelect++;
-		if ( lc->weaponSelect == MAX_WEAPONS ) {
-			lc->weaponSelect = 0;
+		player->weaponSelect++;
+		if ( player->weaponSelect == MAX_WEAPONS ) {
+			player->weaponSelect = 0;
 		}
-		if ( lc->weaponSelect == WP_GAUNTLET ) {
+		if ( player->weaponSelect == WP_GAUNTLET ) {
 			continue;		// never cycle to gauntlet
 		}
-		if ( CG_WeaponSelectable( ps, lc->weaponSelect ) ) {
+		if ( CG_WeaponSelectable( ps, player->weaponSelect ) ) {
 			break;
 		}
 	}
 	if ( i == MAX_WEAPONS ) {
-		lc->weaponSelect = original;
+		player->weaponSelect = original;
 	}
 }
 
@@ -1583,40 +1583,40 @@ void CG_NextWeapon_f( int localClient ) {
 CG_PrevWeapon_f
 ===============
 */
-void CG_PrevWeapon_f( int localClient ) {
+void CG_PrevWeapon_f( int localPlayerNum ) {
 	int		i;
 	int		original;
 	playerState_t	*ps;
-	cglc_t			*lc;
+	localPlayer_t	*player;
 
-	if ( cg.localClients[localClient].clientNum == -1 ) {
+	if ( cg.localPlayers[localPlayerNum].playerNum == -1 ) {
 		return;
 	}
 
-	ps = &cg.snap->pss[localClient];
-	lc = &cg.localClients[localClient];
+	ps = &cg.snap->pss[localPlayerNum];
+	player = &cg.localPlayers[localPlayerNum];
 
 	if ( ps->pm_flags & PMF_FOLLOW ) {
 		return;
 	}
 
-	lc->weaponSelectTime = cg.time;
-	original = lc->weaponSelect;
+	player->weaponSelectTime = cg.time;
+	original = player->weaponSelect;
 
 	for ( i = 0 ; i < MAX_WEAPONS ; i++ ) {
-		lc->weaponSelect--;
-		if ( lc->weaponSelect == -1 ) {
-			lc->weaponSelect = MAX_WEAPONS - 1;
+		player->weaponSelect--;
+		if ( player->weaponSelect == -1 ) {
+			player->weaponSelect = MAX_WEAPONS - 1;
 		}
-		if ( lc->weaponSelect == WP_GAUNTLET ) {
+		if ( player->weaponSelect == WP_GAUNTLET ) {
 			continue;		// never cycle to gauntlet
 		}
-		if ( CG_WeaponSelectable( ps, lc->weaponSelect ) ) {
+		if ( CG_WeaponSelectable( ps, player->weaponSelect ) ) {
 			break;
 		}
 	}
 	if ( i == MAX_WEAPONS ) {
-		lc->weaponSelect = original;
+		player->weaponSelect = original;
 	}
 }
 
@@ -1625,17 +1625,17 @@ void CG_PrevWeapon_f( int localClient ) {
 CG_Weapon_f
 ===============
 */
-void CG_Weapon_f( int localClient ) {
+void CG_Weapon_f( int localPlayerNum ) {
 	int		num;
 	playerState_t	*ps;
-	cglc_t			*lc;
+	localPlayer_t	*player;
 
-	if ( cg.localClients[localClient].clientNum == -1 ) {
+	if ( cg.localPlayers[localPlayerNum].playerNum == -1 ) {
 		return;
 	}
 
-	ps = &cg.snap->pss[localClient];
-	lc = &cg.localClients[localClient];
+	ps = &cg.snap->pss[localPlayerNum];
+	player = &cg.localPlayers[localPlayerNum];
 
 	if ( ps->pm_flags & PMF_FOLLOW ) {
 		return;
@@ -1647,13 +1647,13 @@ void CG_Weapon_f( int localClient ) {
 		return;
 	}
 
-	lc->weaponSelectTime = cg.time;
+	player->weaponSelectTime = cg.time;
 
 	if ( ! ( ps->stats[STAT_WEAPONS] & ( 1 << num ) ) ) {
 		return;		// don't have the weapon
 	}
 
-	lc->weaponSelect = num;
+	player->weaponSelect = num;
 }
 
 /*
@@ -1663,23 +1663,23 @@ CG_OutOfAmmoChange
 The current weapon has just run out of ammo
 ===================
 */
-void CG_OutOfAmmoChange( int localClient ) {
-	cglc_t			*lc;
+void CG_OutOfAmmoChange( int localPlayerNum ) {
+	localPlayer_t	*player;
 	playerState_t	*ps;
 	int				i;
 
-	if ( cg.localClients[localClient].clientNum == -1 ) {
+	if ( cg.localPlayers[localPlayerNum].playerNum == -1 ) {
 		return;
 	}
 
-	lc = &cg.localClients[localClient];
-	ps = &cg.snap->pss[localClient];
+	player = &cg.localPlayers[localPlayerNum];
+	ps = &cg.snap->pss[localPlayerNum];
 
-	lc->weaponSelectTime = cg.time;
+	player->weaponSelectTime = cg.time;
 
 	for ( i = MAX_WEAPONS-1 ; i > 0 ; i-- ) {
 		if ( CG_WeaponSelectable( ps, i ) ) {
-			lc->weaponSelect = i;
+			player->weaponSelect = i;
 			break;
 		}
 	}
@@ -1765,7 +1765,7 @@ CG_MissileHitWall
 Caused by an EV_MISSILE_MISS event, or directly by local bullet tracing
 =================
 */
-void CG_MissileHitWall( int weapon, int clientNum, vec3_t origin, vec3_t dir, impactSound_t soundType ) {
+void CG_MissileHitWall( int weapon, int playerNum, vec3_t origin, vec3_t dir, impactSound_t soundType ) {
 	qhandle_t		mod;
 	qhandle_t		mark;
 	qhandle_t		shader;
@@ -1942,8 +1942,8 @@ void CG_MissileHitWall( int weapon, int clientNum, vec3_t origin, vec3_t dir, im
 		le->light = light;
 		VectorCopy( lightColor, le->lightColor );
 
-		// colorize with client color
-		VectorCopy( cgs.clientinfo[clientNum].color1, le->color );
+		// colorize with player color
+		VectorCopy( cgs.playerinfo[playerNum].color1, le->color );
 		le->refEntity.shaderRGBA[0] = le->color[0] * 0xff;
 		le->refEntity.shaderRGBA[1] = le->color[1] * 0xff;
 		le->refEntity.shaderRGBA[2] = le->color[2] * 0xff;
@@ -1957,8 +1957,8 @@ void CG_MissileHitWall( int weapon, int clientNum, vec3_t origin, vec3_t dir, im
 	if ( weapon == WP_RAILGUN ) {
 		float	*color;
 
-		// colorize with client color
-		color = cgs.clientinfo[clientNum].color1;
+		// colorize with player color
+		color = cgs.playerinfo[playerNum].color1;
 		CG_ImpactMark( mark, origin, dir, random()*360, color[0],color[1], color[2],1, alphaFade, radius, qfalse );
 	} else {
 		CG_ImpactMark( mark, origin, dir, random()*360, 1,1,1,1, alphaFade, radius, qfalse );
@@ -2208,7 +2208,7 @@ static qboolean	CG_CalcMuzzlePoint( int entityNum, vec3_t muzzle ) {
 	int			anim;
 	playerState_t *ps;
 
-	ps = CG_LocalClientPlayerStateForClientNum(entityNum);
+	ps = CG_LocalPlayerState(entityNum);
 	if ( ps ) {
 		VectorCopy( ps->origin, muzzle );
 		muzzle[2] += ps->viewheight;

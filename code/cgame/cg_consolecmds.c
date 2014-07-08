@@ -52,7 +52,7 @@ void CG_TargetCommand_f( int localPlayerNum ) {
 	}
 
 	trap_Argv( 1, test, 4 );
-	trap_SendClientCommand( va( "%s %i %i", Com_LocalClientCvarName( localPlayerNum, "gc" ), targetNum, atoi( test ) ) );
+	trap_SendClientCommand( va( "%s %i %i", Com_LocalPlayerCvarName( localPlayerNum, "gc" ), targetNum, atoi( test ) ) );
 }
 
 
@@ -119,7 +119,7 @@ void CG_MessageMode3_f( void ) {
 		return;
 	}
 	Com_sprintf( cg.messageCommand, sizeof (cg.messageCommand), "tell %d", playerNum );
-	Com_sprintf( cg.messagePrompt, sizeof (cg.messagePrompt), "Tell %s:", cgs.clientinfo[ playerNum ].name );
+	Com_sprintf( cg.messagePrompt, sizeof (cg.messagePrompt), "Tell %s:", cgs.playerinfo[ playerNum ].name );
 	MField_Clear( &cg.messageField );
 	cg.messageField.widthInChars = 30;
 	trap_Key_SetCatcher( trap_Key_GetCatcher( ) ^ KEYCATCH_MESSAGE );
@@ -136,7 +136,7 @@ void CG_MessageMode4_f( void ) {
 		return;
 	}
 	Com_sprintf( cg.messageCommand, sizeof (cg.messageCommand), "tell %d", playerNum );
-	Com_sprintf( cg.messagePrompt, sizeof (cg.messagePrompt), "Tell %s:", cgs.clientinfo[ playerNum ].name );
+	Com_sprintf( cg.messagePrompt, sizeof (cg.messagePrompt), "Tell %s:", cgs.playerinfo[ playerNum ].name );
 	MField_Clear( &cg.messageField );
 	cg.messageField.widthInChars = 30;
 	trap_Key_SetCatcher( trap_Key_GetCatcher( ) ^ KEYCATCH_MESSAGE );
@@ -151,10 +151,10 @@ Debugging command to print the current position
 =============
 */
 static void CG_Viewpos_f( int localPlayerNum ) {
-	CG_Printf ("(%i %i %i) : %i\n", (int)cg.localClients[localPlayerNum].lastViewPos[0],
-		(int)cg.localClients[localPlayerNum].lastViewPos[1],
-		(int)cg.localClients[localPlayerNum].lastViewPos[2],
-		(int)cg.localClients[localPlayerNum].lastViewAngles[YAW]);
+	CG_Printf ("(%i %i %i) : %i\n", (int)cg.localPlayers[localPlayerNum].lastViewPos[0],
+		(int)cg.localPlayers[localPlayerNum].lastViewPos[1],
+		(int)cg.localPlayers[localPlayerNum].lastViewPos[2],
+		(int)cg.localPlayers[localPlayerNum].lastViewAngles[YAW]);
 }
 
 /*
@@ -162,8 +162,8 @@ static void CG_Viewpos_f( int localPlayerNum ) {
 CG_ScoresDown
 =============
 */
-static void CG_ScoresDown_f(int localClientNum) {
-	cglc_t *lc = &cg.localClients[localClientNum];
+static void CG_ScoresDown_f(int localPlayerNum) {
+	localPlayer_t *player = &cg.localPlayers[localPlayerNum];
 
 #ifdef MISSIONPACK_HUD
 	CG_BuildSpectatorString();
@@ -180,11 +180,11 @@ static void CG_ScoresDown_f(int localClientNum) {
 			cg.numScores = 0;
 		}
 
-		lc->showScores = qtrue;
+		player->showScores = qtrue;
 	} else {
 		// show the cached contents even if they just pressed if it
 		// is within two seconds
-		lc->showScores = qtrue;
+		player->showScores = qtrue;
 	}
 }
 
@@ -193,12 +193,12 @@ static void CG_ScoresDown_f(int localClientNum) {
 CG_ScoresUp_f
 =============
 */
-static void CG_ScoresUp_f( int localClientNum ) {
-	cglc_t *lc = &cg.localClients[localClientNum];
+static void CG_ScoresUp_f( int localPlayerNum ) {
+	localPlayer_t *player = &cg.localPlayers[localPlayerNum];
 
-	if ( lc->showScores ) {
-		lc->showScores = qfalse;
-		lc->scoreFadeTime = cg.time;
+	if ( player->showScores ) {
+		player->showScores = qfalse;
+		player->scoreFadeTime = cg.time;
 	}
 }
 
@@ -207,17 +207,17 @@ static void CG_ScoresUp_f( int localClientNum ) {
 CG_SetModel_f
 =============
 */
-void CG_SetModel_f( int localClientNum ) {
+void CG_SetModel_f( int localPlayerNum ) {
 	const char	*arg;
 	char	name[256];
 	char	cvarName[32];
 
-	Q_strncpyz( cvarName, Com_LocalClientCvarName( localClientNum, "model"), sizeof (cvarName) );
+	Q_strncpyz( cvarName, Com_LocalPlayerCvarName( localPlayerNum, "model"), sizeof (cvarName) );
 
 	arg = CG_Argv( 1 );
 	if ( arg[0] ) {
 		trap_Cvar_Set( cvarName, arg );
-		trap_Cvar_Set( Com_LocalClientCvarName( localClientNum, "headmodel"), arg );
+		trap_Cvar_Set( Com_LocalPlayerCvarName( localPlayerNum, "headmodel"), arg );
 	} else {
 		trap_Cvar_VariableStringBuffer( cvarName, name, sizeof(name) );
 		Com_Printf("%s is set to %s\n", cvarName, name);
@@ -288,9 +288,9 @@ static void CG_CameraOrbit( int speed, int delay ) {
 	}
 
 	for ( i = 0; i < CG_MaxSplitView(); i++ ) {
-		trap_Cvar_SetValue(Com_LocalClientCvarName( i, "cg_thirdPerson" ), speed == 0 ? 0 : 1 );
-		trap_Cvar_SetValue(Com_LocalClientCvarName( i, "cg_thirdPersonAngle" ), 0 );
-		trap_Cvar_SetValue(Com_LocalClientCvarName( i, "cg_thirdPersonRange" ), 100 );
+		trap_Cvar_SetValue(Com_LocalPlayerCvarName( i, "cg_thirdPerson" ), speed == 0 ? 0 : 1 );
+		trap_Cvar_SetValue(Com_LocalPlayerCvarName( i, "cg_thirdPersonAngle" ), 0 );
+		trap_Cvar_SetValue(Com_LocalPlayerCvarName( i, "cg_thirdPersonRange" ), 100 );
 	}
 }
 
@@ -312,63 +312,63 @@ static void CG_spLose_f( void) {
 #endif
 
 static void CG_TellTarget_f( int localPlayerNum ) {
-	int		clientNum;
+	int		playerNum;
 	char	command[128];
 	char	message[128];
 
-	clientNum = CG_CrosshairPlayer( localPlayerNum );
-	if ( clientNum == -1 ) {
+	playerNum = CG_CrosshairPlayer( localPlayerNum );
+	if ( playerNum == -1 ) {
 		return;
 	}
 
 	trap_Args( message, 128 );
-	Com_sprintf( command, 128, "%s %i %s", Com_LocalClientCvarName( localPlayerNum, "tell" ), clientNum, message );
+	Com_sprintf( command, 128, "%s %i %s", Com_LocalPlayerCvarName( localPlayerNum, "tell" ), playerNum, message );
 	trap_SendClientCommand( command );
 }
 
 static void CG_TellAttacker_f( int localPlayerNum ) {
-	int		clientNum;
+	int		playerNum;
 	char	command[128];
 	char	message[128];
 
-	clientNum = CG_LastAttacker( localPlayerNum );
-	if ( clientNum == -1 ) {
+	playerNum = CG_LastAttacker( localPlayerNum );
+	if ( playerNum == -1 ) {
 		return;
 	}
 
 	trap_Args( message, 128 );
-	Com_sprintf( command, 128, "%s %i %s", Com_LocalClientCvarName( localPlayerNum, "tell" ), clientNum, message );
+	Com_sprintf( command, 128, "%s %i %s", Com_LocalPlayerCvarName( localPlayerNum, "tell" ), playerNum, message );
 	trap_SendClientCommand( command );
 }
 
 #ifdef MISSIONPACK
 static void CG_VoiceTellTarget_f( int localPlayerNum ) {
-	int		clientNum;
+	int		playerNum;
 	char	command[128];
 	char	message[128];
 
-	clientNum = CG_CrosshairPlayer( localPlayerNum );
-	if ( clientNum == -1 ) {
+	playerNum = CG_CrosshairPlayer( localPlayerNum );
+	if ( playerNum == -1 ) {
 		return;
 	}
 
 	trap_Args( message, 128 );
-	Com_sprintf( command, 128, "%s %i %s", Com_LocalClientCvarName( localPlayerNum, "vtell" ), clientNum, message );
+	Com_sprintf( command, 128, "%s %i %s", Com_LocalPlayerCvarName( localPlayerNum, "vtell" ), playerNum, message );
 	trap_SendClientCommand( command );
 }
 
 static void CG_VoiceTellAttacker_f( int localPlayerNum ) {
-	int		clientNum;
+	int		playerNum;
 	char	command[128];
 	char	message[128];
 
-	clientNum = CG_LastAttacker( localPlayerNum );
-	if ( clientNum == -1 ) {
+	playerNum = CG_LastAttacker( localPlayerNum );
+	if ( playerNum == -1 ) {
 		return;
 	}
 
 	trap_Args( message, 128 );
-	Com_sprintf( command, 128, "%s %i %s", Com_LocalClientCvarName( localPlayerNum, "vtell" ), clientNum, message );
+	Com_sprintf( command, 128, "%s %i %s", Com_LocalPlayerCvarName( localPlayerNum, "vtell" ), playerNum, message );
 	trap_SendClientCommand( command );
 }
 
@@ -383,156 +383,156 @@ static void CG_PrevTeamMember_f( int localPlayerNum ) {
 // ASS U ME's enumeration order as far as task specific orders, OFFENSE is zero, CAMP is last
 //
 static void CG_NextOrder_f( int localPlayerNum ) {
-	cglc_t			*localClient;
-	clientInfo_t	*ci;
-	int				clientNum;
+	localPlayer_t	*player;
+	playerInfo_t	*pi;
+	int				playerNum;
 	int				team;
 
-	localClient = &cg.localClients[ localPlayerNum ];
+	player = &cg.localPlayers[ localPlayerNum ];
 
-	if ( localClient->clientNum == -1 ) {
+	if ( player->playerNum == -1 ) {
 		return;
 	}
 
-	clientNum = cg.snap->pss[ localPlayerNum ].clientNum;
+	playerNum = cg.snap->pss[ localPlayerNum ].playerNum;
 	team = cg.snap->pss[ localPlayerNum ].persistant[PERS_TEAM];
 
-	ci = cgs.clientinfo + clientNum;
+	pi = cgs.playerinfo + playerNum;
 
-	if (ci) {
-		if (!ci->teamLeader && sortedTeamPlayers[team][cg_currentSelectedPlayer[localPlayerNum].integer] != clientNum) {
+	if (pi) {
+		if (!pi->teamLeader && sortedTeamPlayers[team][cg_currentSelectedPlayer[localPlayerNum].integer] != playerNum) {
 			return;
 		}
 	}
-	if (localClient->currentOrder < TEAMTASK_CAMP) {
-		localClient->currentOrder++;
+	if (player->currentOrder < TEAMTASK_CAMP) {
+		player->currentOrder++;
 
-		if (localClient->currentOrder == TEAMTASK_RETRIEVE) {
+		if (player->currentOrder == TEAMTASK_RETRIEVE) {
 			if (!CG_OtherTeamHasFlag()) {
-				localClient->currentOrder++;
+				player->currentOrder++;
 			}
 		}
 
-		if (localClient->currentOrder == TEAMTASK_ESCORT) {
+		if (player->currentOrder == TEAMTASK_ESCORT) {
 			if (!CG_YourTeamHasFlag()) {
-				localClient->currentOrder++;
+				player->currentOrder++;
 			}
 		}
 
 	} else {
-		localClient->currentOrder = TEAMTASK_OFFENSE;
+		player->currentOrder = TEAMTASK_OFFENSE;
 	}
-	localClient->orderPending = qtrue;
-	localClient->orderTime = cg.time + 3000;
+	player->orderPending = qtrue;
+	player->orderTime = cg.time + 3000;
 }
 
 
 static void CG_ConfirmOrder_f( int localPlayerNum ) {
-	cglc_t			*localClient;
+	localPlayer_t *player;
 
-	localClient = &cg.localClients[ localPlayerNum ];
+	player = &cg.localPlayers[ localPlayerNum ];
 
-	if ( localClient->clientNum == -1 ) {
+	if ( player->playerNum == -1 ) {
 		return;
 	}
 
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %d %s\n", Com_LocalClientCvarName(localPlayerNum, "vtell"), localClient->acceptLeader, VOICECHAT_YES));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %d %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vtell"), player->acceptLeader, VOICECHAT_YES));
 	trap_Cmd_ExecuteText(EXEC_NOW, "+button5; wait; -button5");
-	if (cg.time < localClient->acceptOrderTime) {
-		trap_SendClientCommand(va("teamtask %d\n", localClient->acceptTask));
-		localClient->acceptOrderTime = 0;
+	if (cg.time < player->acceptOrderTime) {
+		trap_SendClientCommand(va("teamtask %d\n", player->acceptTask));
+		player->acceptOrderTime = 0;
 	}
 }
 
 static void CG_DenyOrder_f( int localPlayerNum ) {
-	cglc_t			*localClient;
+	localPlayer_t *player;
 
-	localClient = &cg.localClients[ localPlayerNum ];
+	player = &cg.localPlayers[ localPlayerNum ];
 
-	if ( localClient->clientNum == -1 ) {
+	if ( player->playerNum == -1 ) {
 		return;
 	}
 
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %d %s\n", Com_LocalClientCvarName(localPlayerNum, "vtell"), localClient->acceptLeader, VOICECHAT_NO));
-	trap_Cmd_ExecuteText(EXEC_NOW, va("%s; wait; %s", Com_LocalClientCvarName(localPlayerNum, "+button6"), Com_LocalClientCvarName(localPlayerNum, "-button6")));
-	if (cg.time < localClient->acceptOrderTime) {
-		localClient->acceptOrderTime = 0;
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %d %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vtell"), player->acceptLeader, VOICECHAT_NO));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("%s; wait; %s", Com_LocalPlayerCvarName(localPlayerNum, "+button6"), Com_LocalPlayerCvarName(localPlayerNum, "-button6")));
+	if (cg.time < player->acceptOrderTime) {
+		player->acceptOrderTime = 0;
 	}
 }
 
 static void CG_TaskOffense_f( int localPlayerNum ) {
 	if (cgs.gametype == GT_CTF || cgs.gametype == GT_1FCTF) {
-		trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONGETFLAG));
+		trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONGETFLAG));
 	} else {
-		trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONOFFENSE));
+		trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONOFFENSE));
 	}
-	trap_SendClientCommand(va("%s %d\n", Com_LocalClientCvarName(localPlayerNum, "teamtask"), TEAMTASK_OFFENSE));
+	trap_SendClientCommand(va("%s %d\n", Com_LocalPlayerCvarName(localPlayerNum, "teamtask"), TEAMTASK_OFFENSE));
 }
 
 static void CG_TaskDefense_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONDEFENSE));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONDEFENSE));
 	trap_SendClientCommand(va("teamtask %d\n", TEAMTASK_DEFENSE));
 }
 
 static void CG_TaskPatrol_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONPATROL));
-	trap_SendClientCommand(va("%s %d\n", Com_LocalClientCvarName(localPlayerNum, "teamtask"), TEAMTASK_PATROL));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONPATROL));
+	trap_SendClientCommand(va("%s %d\n", Com_LocalPlayerCvarName(localPlayerNum, "teamtask"), TEAMTASK_PATROL));
 }
 
 static void CG_TaskCamp_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONCAMPING));
-	trap_SendClientCommand(va("%s %d\n", Com_LocalClientCvarName(localPlayerNum, "teamtask"), TEAMTASK_CAMP));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONCAMPING));
+	trap_SendClientCommand(va("%s %d\n", Com_LocalPlayerCvarName(localPlayerNum, "teamtask"), TEAMTASK_CAMP));
 }
 
 static void CG_TaskFollow_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONFOLLOW));
-	trap_SendClientCommand(va("%s %d\n", Com_LocalClientCvarName(localPlayerNum, "teamtask"), TEAMTASK_FOLLOW));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONFOLLOW));
+	trap_SendClientCommand(va("%s %d\n", Com_LocalPlayerCvarName(localPlayerNum, "teamtask"), TEAMTASK_FOLLOW));
 }
 
 static void CG_TaskRetrieve_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONRETURNFLAG));
-	trap_SendClientCommand(va("%s %d\n", Com_LocalClientCvarName(localPlayerNum, "teamtask"), TEAMTASK_RETRIEVE));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONRETURNFLAG));
+	trap_SendClientCommand(va("%s %d\n", Com_LocalPlayerCvarName(localPlayerNum, "teamtask"), TEAMTASK_RETRIEVE));
 }
 
 static void CG_TaskEscort_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONFOLLOWCARRIER));
-	trap_SendClientCommand(va("%s %d\n", Com_LocalClientCvarName(localPlayerNum, "teamtask"), TEAMTASK_ESCORT));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_ONFOLLOWCARRIER));
+	trap_SendClientCommand(va("%s %d\n", Com_LocalPlayerCvarName(localPlayerNum, "teamtask"), TEAMTASK_ESCORT));
 }
 
 static void CG_TaskOwnFlag_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay_team"), VOICECHAT_IHAVEFLAG));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay_team"), VOICECHAT_IHAVEFLAG));
 }
 
 static void CG_TauntKillInsult_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay"), VOICECHAT_KILLINSULT));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay"), VOICECHAT_KILLINSULT));
 }
 
 static void CG_TauntPraise_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay"), VOICECHAT_PRAISE));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay"), VOICECHAT_PRAISE));
 }
 
 static void CG_TauntTaunt_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s\n", Com_LocalClientCvarName(localPlayerNum, "vtaunt")));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vtaunt")));
 }
 
 static void CG_TauntDeathInsult_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay"), VOICECHAT_DEATHINSULT));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay"), VOICECHAT_DEATHINSULT));
 }
 
 static void CG_TauntGauntlet_f( int localPlayerNum ) {
-	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalClientCvarName(localPlayerNum, "vsay"), VOICECHAT_KILLGAUNTLET));
+	trap_Cmd_ExecuteText(EXEC_NOW, va("cmd %s %s\n", Com_LocalPlayerCvarName(localPlayerNum, "vsay"), VOICECHAT_KILLGAUNTLET));
 }
 
 static void CG_TaskSuicide_f( int localPlayerNum ) {
-	int		clientNum;
+	int		playerNum;
 	char	command[128];
 
-	clientNum = CG_CrosshairPlayer(0);
-	if ( clientNum == -1 ) {
+	playerNum = CG_CrosshairPlayer(0);
+	if ( playerNum == -1 ) {
 		return;
 	}
 
-	Com_sprintf( command, 128, "%s %i suicide", Com_LocalClientCvarName( localPlayerNum, "tell" ), clientNum );
+	Com_sprintf( command, 128, "%s %i suicide", Com_LocalPlayerCvarName( localPlayerNum, "tell" ), playerNum );
 	trap_SendClientCommand( command );
 }
 
@@ -985,8 +985,8 @@ qboolean CG_ConsoleCommand( connstate_t state, int realTime ) {
 
 	cmd = CG_Argv(0);
 
-	localPlayerNum = Com_LocalClientForCvarName( cmd );
-	baseCmd = Com_LocalClientBaseCvarName( cmd );
+	localPlayerNum = Com_LocalPlayerForCvarName( cmd );
+	baseCmd = Com_LocalPlayerBaseCvarName( cmd );
 
 	for ( i = 0 ; i < numPlayerCommands ; i++ ) {
 		if ( !Q_stricmp( baseCmd, playerCommands[i].cmd )) {
@@ -1040,7 +1040,7 @@ void CG_InitConsoleCommands( void ) {
 
 	for ( i = 0 ; i < numPlayerCommands ; i++ ) {
 		for ( j = 0; j < CG_MaxSplitView(); j++ ) {
-			trap_AddCommand( Com_LocalClientCvarName( j, playerCommands[i].cmd ) );
+			trap_AddCommand( Com_LocalPlayerCvarName( j, playerCommands[i].cmd ) );
 		}
 	}
 
@@ -1053,35 +1053,35 @@ void CG_InitConsoleCommands( void ) {
 	// forwarded to the server after they are not recognized locally
 	//
 	for (i = 0; i < CG_MaxSplitView(); i++) {
-		trap_AddCommand(Com_LocalClientCvarName(i, "say"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "say_team"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "tell"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "say"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "say_team"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "tell"));
 #ifdef MISSIONPACK
-		trap_AddCommand(Com_LocalClientCvarName(i, "vsay"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "vsay_team"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "vtell"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "vosay"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "vosay_team"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "votell"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "vtaunt"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "vsay"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "vsay_team"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "vtell"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "vosay"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "vosay_team"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "votell"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "vtaunt"));
 #endif
-		trap_AddCommand(Com_LocalClientCvarName(i, "give"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "god"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "notarget"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "noclip"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "where"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "kill"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "teamtask"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "levelshot"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "follow"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "follownext"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "followprev"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "team"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "callvote"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "vote"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "callteamvote"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "teamvote"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "setviewpos"));
-		trap_AddCommand(Com_LocalClientCvarName(i, "stats"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "give"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "god"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "notarget"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "noclip"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "where"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "kill"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "teamtask"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "levelshot"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "follow"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "follownext"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "followprev"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "team"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "callvote"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "vote"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "callteamvote"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "teamvote"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "setviewpos"));
+		trap_AddCommand(Com_LocalPlayerCvarName(i, "stats"));
 	}
 }

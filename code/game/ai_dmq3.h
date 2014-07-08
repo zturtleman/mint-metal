@@ -78,10 +78,10 @@ qboolean EntityHasKamikaze(aas_entityinfo_t *entinfo);
 void BotSetUserInfo(bot_state_t *bs, char *key, char *value);
 // set the team status (offense, defense etc.)
 void BotSetTeamStatus(bot_state_t *bs);
-//returns the name of the client
-char *ClientName(int client, char *name, int size);
-//returns a simplified client name
-char *EasyClientName(int client, char *name, int size);
+//returns the name of the player
+char *PlayerName(int playernum, char *name, int size);
+//returns a simplified player name
+char *EasyPlayerName(int playernum, char *name, int size);
 // returns the appropriate synonym context for the current game type and situation
 int BotSynonymContext(bot_state_t *bs);
 // set last ordered task
@@ -112,7 +112,7 @@ int BotSameTeam(bot_state_t *bs, int entnum);
 int TeamPlayIsOn(void);
 //returns true if the bot can camp
 qboolean BotCanCamp(bot_state_t *bs);
-// returns the client number of the team mate flag carrier (-1 if none)
+// returns the player number of the team mate flag carrier (-1 if none)
 int BotTeamFlagCarrier(bot_state_t *bs);
 //returns visible team mate flag carrier if available
 int BotTeamFlagCarrierVisible(bot_state_t *bs);
@@ -178,9 +178,9 @@ bot_waypoint_t *BotCreateWayPoint(char *name, vec3_t origin, int areanum);
 bot_waypoint_t *BotFindWayPoint(bot_waypoint_t *waypoints, char *name);
 //strstr but case insensitive
 char *stristr(char *str, char *charset);
-//returns the number of the client with the given name
-int ClientFromName(char *name);
-int ClientOnSameTeamFromName(bot_state_t *bs, char *name);
+//returns the number of the player with the given name
+int PlayerFromName(char *name);
+int PlayerOnSameTeamFromName(bot_state_t *bs, char *name);
 //
 int BotPointAreaNum(vec3_t origin);
 //
@@ -195,7 +195,7 @@ void BotMapScripts(bot_state_t *bs);
 #define CTF_SKIN_BLUETEAM	"blue"
 
 extern int gametype;		//game type
-extern int maxclients;		//maximum number of clients
+extern int maxplayers;		//maximum number of players
 
 extern vmCvar_t bot_grapple;
 extern vmCvar_t bot_rocketjump;

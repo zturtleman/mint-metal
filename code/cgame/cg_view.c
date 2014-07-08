@@ -341,22 +341,22 @@ static void CG_OffsetThirdPersonView( void ) {
 
 	VectorCopy( cg.refdef.vieworg, view );
 
-	view[2] += cg_thirdPersonHeight[cg.cur_localClientNum].value;
+	view[2] += cg_thirdPersonHeight[cg.cur_localPlayerNum].value;
 
 	cg.refdefViewAngles[PITCH] *= 0.5;
 
 	AngleVectors( cg.refdefViewAngles, forward, right, up );
 
-	forwardScale = cos( cg_thirdPersonAngle[cg.cur_localClientNum].value / 180 * M_PI );
-	sideScale = sin( cg_thirdPersonAngle[cg.cur_localClientNum].value / 180 * M_PI );
-	VectorMA( view, -cg_thirdPersonRange[cg.cur_localClientNum].value * forwardScale, forward, view );
-	VectorMA( view, -cg_thirdPersonRange[cg.cur_localClientNum].value * sideScale, right, view );
+	forwardScale = cos( cg_thirdPersonAngle[cg.cur_localPlayerNum].value / 180 * M_PI );
+	sideScale = sin( cg_thirdPersonAngle[cg.cur_localPlayerNum].value / 180 * M_PI );
+	VectorMA( view, -cg_thirdPersonRange[cg.cur_localPlayerNum].value * forwardScale, forward, view );
+	VectorMA( view, -cg_thirdPersonRange[cg.cur_localPlayerNum].value * sideScale, right, view );
 
 	// trace a ray from the origin to the viewpoint to make sure the view isn't
 	// in a solid block.  Use an 8 by 8 block to prevent the view from near clipping anything
 
 	if (!cg_cameraMode.integer) {
-		CG_Trace( &trace, cg.refdef.vieworg, mins, maxs, view, cg.cur_lc->predictedPlayerState.clientNum, MASK_SOLID );
+		CG_Trace( &trace, cg.refdef.vieworg, mins, maxs, view, cg.cur_lc->predictedPlayerState.playerNum, MASK_SOLID );
 
 		if ( trace.fraction != 1.0 ) {
 			VectorCopy( trace.endpos, view );
@@ -364,7 +364,7 @@ static void CG_OffsetThirdPersonView( void ) {
 			// try another trace to this position, because a tunnel may have the ceiling
 			// close enough that this is poking out
 
-			CG_Trace( &trace, cg.refdef.vieworg, mins, maxs, view, cg.cur_lc->predictedPlayerState.clientNum, MASK_SOLID );
+			CG_Trace( &trace, cg.refdef.vieworg, mins, maxs, view, cg.cur_lc->predictedPlayerState.playerNum, MASK_SOLID );
 			VectorCopy( trace.endpos, view );
 		}
 	}
@@ -379,7 +379,7 @@ static void CG_OffsetThirdPersonView( void ) {
 		focusDist = 1;	// should never happen
 	}
 	cg.refdefViewAngles[PITCH] = -180 / M_PI * atan2( focusPoint[2], focusDist );
-	cg.refdefViewAngles[YAW] -= cg_thirdPersonAngle[cg.cur_localClientNum].value;
+	cg.refdefViewAngles[YAW] -= cg_thirdPersonAngle[cg.cur_localPlayerNum].value;
 }
 
 /*
@@ -518,26 +518,26 @@ static void CG_OffsetFirstPersonView( void ) {
 
 //======================================================================
 
-void CG_ZoomDown_f( int localClientNum ) {
-	cglc_t *lc = &cg.localClients[localClientNum];
+void CG_ZoomDown_f( int localPlayerNum ) {
+	localPlayer_t *player = &cg.localPlayers[localPlayerNum];
 
-	if ( lc->zoomed ) {
+	if ( player->zoomed ) {
 		return;
 	}
 
-	lc->zoomed = qtrue;
-	lc->zoomTime = cg.time;
+	player->zoomed = qtrue;
+	player->zoomTime = cg.time;
 }
 
-void CG_ZoomUp_f( int localClientNum ) {
-	cglc_t *lc = &cg.localClients[localClientNum];
+void CG_ZoomUp_f( int localPlayerNum ) {
+	localPlayer_t *player = &cg.localPlayers[localPlayerNum];
 
-	if ( !lc->zoomed ) {
+	if ( !player->zoomed ) {
 		return;
 	}
 
-	lc->zoomed = qfalse;
-	lc->zoomTime = cg.time;
+	player->zoomed = qfalse;
+	player->zoomTime = cg.time;
 }
 
 
@@ -566,7 +566,7 @@ static int CG_CalcFov( void ) {
 	} else {
 		// user selectable
 		if ( cgs.dmflags & DF_FIXED_FOV ) {
-			// dmflag to prevent wide fov for all clients
+			// dmflag to prevent wide fov for all players
 			fov_x = 90;
 		} else {
 			fov_x = cg_fov.value;
@@ -778,7 +778,7 @@ static int CG_CalcViewValues( void ) {
 
 	if (cg_cameraOrbit.integer) {
 		if (cg.time > cg.nextOrbitTime) {
-			cg_thirdPersonAngle[cg.cur_localClientNum].value += cg_cameraOrbit.value;
+			cg_thirdPersonAngle[cg.cur_localPlayerNum].value += cg_cameraOrbit.value;
 		}
 	}
 	// add error decay
@@ -846,7 +846,7 @@ static void CG_PowerupTimerSounds( void ) {
 			continue;
 		}
 		if ( ( t - cg.time ) / POWERUP_BLINK_TIME != ( t - cg.oldTime ) / POWERUP_BLINK_TIME ) {
-			trap_S_StartSound( NULL, cg.cur_ps->clientNum, CHAN_ITEM, cgs.media.wearOffSound );
+			trap_S_StartSound( NULL, cg.cur_ps->playerNum, CHAN_ITEM, cgs.media.wearOffSound );
 		}
 	}
 }
@@ -975,7 +975,7 @@ Generates and draws a game scene and status information at the given time.
 */
 void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback ) {
 	int		inwater;
-	qboolean renderClientViewport[MAX_SPLITVIEW];
+	qboolean renderPlayerViewport[MAX_SPLITVIEW];
 	int		i;
 
 	cg.time = serverTime;
@@ -1014,29 +1014,29 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 
 	// Use single camera/viewport at intermission
 	for (i = 0; i < CG_MaxSplitView(); i++) {
-		if ( cg.localClients[i].clientNum != -1 && cg.snap->pss[i].pm_type != PM_INTERMISSION ) {
-			// client present and not at intermission, keep viewports separate.
+		if ( cg.localPlayers[i].playerNum != -1 && cg.snap->pss[i].pm_type != PM_INTERMISSION ) {
+			// player present and not at intermission, keep viewports separate.
 			break;
 		}
 	}
-	cg.singleCamera = ( CG_NumLocalClients() > 1 && i == CG_MaxSplitView() );
+	cg.singleCamera = ( CG_NumLocalPlayers() > 1 && i == CG_MaxSplitView() );
 
 	cg.numViewports = 0;
 	for (i = 0; i < CG_MaxSplitView(); i++) {
-		if ( cg.localClients[i].clientNum == -1 ) {
-			renderClientViewport[i] = qfalse;
+		if ( cg.localPlayers[i].playerNum == -1 ) {
+			renderPlayerViewport[i] = qfalse;
 			continue;
 		}
-		cg.cur_localClientNum = i;
-		cg.cur_lc = &cg.localClients[i];
+		cg.cur_localPlayerNum = i;
+		cg.cur_lc = &cg.localPlayers[i];
 		cg.cur_ps = &cg.snap->pss[i];
 
 		// Check if viewport should be drawn.
 		if ( cg.singleCamera && cg.numViewports >= 1 ) {
-			renderClientViewport[i] = qfalse;
+			renderPlayerViewport[i] = qfalse;
 		} else {
 			cg.numViewports++;
-			renderClientViewport[i] = qtrue;
+			renderPlayerViewport[i] = qtrue;
 		}
 
 		// update cg.predictedPlayerState
@@ -1048,14 +1048,14 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 		}
 	}
 
-	cg.cur_localClientNum = -1;
+	cg.cur_localPlayerNum = -1;
 	cg.cur_lc = NULL;
 	cg.cur_ps = NULL;
 
-	// If all local clients dropped out from playing still draw main local client.
+	// If all local players dropped out from playing still draw main local player.
 	if (cg.numViewports == 0) {
 		cg.numViewports = 1;
-		renderClientViewport[0] = qtrue;
+		renderPlayerViewport[0] = qtrue;
 	}
 
 	// play lead change annoucement and time/frag limit warnings
@@ -1070,17 +1070,17 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 #endif
 
 	for (i = 0, cg.viewport = -1; i < CG_MaxSplitView(); i++) {
-		if (!renderClientViewport[i]) {
+		if (!renderPlayerViewport[i]) {
 			continue;
 		}
 		cg.viewport++;
-		cg.cur_localClientNum = i;
-		cg.cur_lc = &cg.localClients[i];
+		cg.cur_localPlayerNum = i;
+		cg.cur_lc = &cg.localPlayers[i];
 		cg.cur_ps = &cg.snap->pss[i];
 
 		// decide on third person view
 		cg.cur_lc->renderingThirdPerson = cg.cur_ps->persistant[PERS_TEAM] != TEAM_SPECTATOR
-							&& (cg_thirdPerson[cg.cur_localClientNum].integer || (cg.cur_ps->stats[STAT_HEALTH] <= 0));
+							&& (cg_thirdPerson[cg.cur_localPlayerNum].integer || (cg.cur_ps->stats[STAT_HEALTH] <= 0));
 
 		CG_PB_ClearPolyBuffers();
 
@@ -1116,7 +1116,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 		CG_PowerupTimerSounds();
 
 		// update audio positions
-		trap_S_Respatialize( cg.cur_ps->clientNum, cg.refdef.vieworg, cg.refdef.viewaxis, inwater, !cg.cur_lc->renderingThirdPerson );
+		trap_S_Respatialize( cg.cur_ps->playerNum, cg.refdef.vieworg, cg.refdef.viewaxis, inwater, !cg.cur_lc->renderingThirdPerson );
 
 		// make sure the lagometerSample and frame timing isn't done twice when in stereo
 		if ( stereoView != STEREO_RIGHT && cg.viewport == 0 ) {
@@ -1147,7 +1147,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 		CG_DrawActive( stereoView );
 	}
 
-	cg.cur_localClientNum = -1;
+	cg.cur_localPlayerNum = -1;
 	cg.cur_lc = NULL;
 	cg.cur_ps = NULL;
 
