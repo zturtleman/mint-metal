@@ -385,7 +385,7 @@ qboolean PlayerInactivityTimer( gplayer_t *player ) {
 		player->inactivityWarning = qfalse;
 	} else if ( !player->pers.localClient ) {
 		if ( level.time > player->inactivityTime ) {
-			trap_DropClient( player - level.players, "Dropped due to inactivity" );
+			trap_DropPlayer( player - level.players, "Dropped due to inactivity" );
 			return qfalse;
 		}
 		if ( level.time > player->inactivityTime - 10000 && !player->inactivityWarning ) {
@@ -538,14 +538,11 @@ but any server game effects are handled here
 ================
 */
 void PlayerEvents( gentity_t *ent, int oldEventSequence ) {
-	int		i, j;
+	int		i;
 	int		event;
 	gplayer_t *player;
 	int		damage;
 	vec3_t	origin, angles;
-//	qboolean	fired;
-	gitem_t *item;
-	gentity_t *drop;
 
 	player = ent->player;
 
@@ -577,84 +574,64 @@ void PlayerEvents( gentity_t *ent, int oldEventSequence ) {
 			FireWeapon( ent );
 			break;
 
-		case EV_USE_ITEM1:		// teleporter
-			// drop flags in CTF
-			item = NULL;
-			j = 0;
+		case EV_USE_ITEM0:
+		case EV_USE_ITEM1:
+		case EV_USE_ITEM2:
+		case EV_USE_ITEM3:
+		case EV_USE_ITEM4:
+		case EV_USE_ITEM5:
+		case EV_USE_ITEM6:
+		case EV_USE_ITEM7:
+		case EV_USE_ITEM8:
+		case EV_USE_ITEM9:
+		case EV_USE_ITEM10:
+		case EV_USE_ITEM11:
+		case EV_USE_ITEM12:
+		case EV_USE_ITEM13:
+		case EV_USE_ITEM14:
+		case EV_USE_ITEM15:
+		{
+			int itemNum = (event & ~EV_EVENT_BITS) - EV_USE_ITEM0;
 
-			if ( ent->player->ps.powerups[ PW_REDFLAG ] ) {
-				item = BG_FindItemForPowerup( PW_REDFLAG );
-				j = PW_REDFLAG;
-			} else if ( ent->player->ps.powerups[ PW_BLUEFLAG ] ) {
-				item = BG_FindItemForPowerup( PW_BLUEFLAG );
-				j = PW_BLUEFLAG;
-			} else if ( ent->player->ps.powerups[ PW_NEUTRALFLAG ] ) {
-				item = BG_FindItemForPowerup( PW_NEUTRALFLAG );
-				j = PW_NEUTRALFLAG;
-			}
+			switch ( itemNum ) {
+			default:
+			case HI_NONE:
+				break;
 
-			if ( item ) {
-				drop = Drop_Item( ent, item, 0 );
-				// decide how many seconds it has left
-				drop->count = ( ent->player->ps.powerups[ j ] - level.time ) / 1000;
-				if ( drop->count < 1 ) {
-					drop->count = 1;
-				}
+			case HI_TELEPORTER:
+				TossPlayerGametypeItems( ent );
+				SelectSpawnPoint( ent->player->ps.origin, origin, angles, qfalse );
+				TeleportPlayer( ent, origin, angles );
+				break;
 
-				ent->player->ps.powerups[ j ] = 0;
-			}
-
-#ifdef MISSIONPACK
-			if ( g_gametype.integer == GT_HARVESTER ) {
-				if ( ent->player->ps.tokens > 0 ) {
-					if ( ent->player->sess.sessionTeam == TEAM_RED ) {
-						item = BG_FindItem( "Blue Cube" );
-					} else {
-						item = BG_FindItem( "Red Cube" );
-					}
-					if ( item ) {
-						for ( j = 0; j < ent->player->ps.tokens; j++ ) {
-							drop = Drop_Item( ent, item, 0 );
-							if ( ent->player->sess.sessionTeam == TEAM_RED ) {
-								drop->s.team = TEAM_BLUE;
-							} else {
-								drop->s.team = TEAM_RED;
-							}
-						}
-					}
-					ent->player->ps.tokens = 0;
-				}
-			}
-#endif
-			SelectSpawnPoint( ent->player->ps.origin, origin, angles, qfalse );
-			TeleportPlayer( ent, origin, angles );
-			break;
-
-		case EV_USE_ITEM2:		// medkit
-			ent->health = ent->player->ps.stats[STAT_MAX_HEALTH] + 25;
-
-			break;
+			case HI_MEDKIT:
+				ent->health = ent->player->ps.stats[STAT_MAX_HEALTH] + 25;
+				break;
 
 #ifdef MISSIONPACK
-		case EV_USE_ITEM3:		// kamikaze
-			// make sure the invulnerability is off
-			ent->player->invulnerabilityTime = 0;
-			// start the kamikze
-			G_StartKamikaze( ent );
-			break;
+			case HI_KAMIKAZE:
+				// make sure the invulnerability is off
+				ent->player->invulnerabilityTime = 0;
+				// start the kamikze
+				G_StartKamikaze( ent );
+				break;
 
-		case EV_USE_ITEM4:		// portal
-			if( ent->player->portalID ) {
-				DropPortalSource( ent );
-			}
-			else {
-				DropPortalDestination( ent );
+			case HI_PORTAL:
+				if ( ent->player->portalID ) {
+					DropPortalSource( ent );
+				}
+				else {
+					DropPortalDestination( ent );
+				}
+				break;
+
+			case HI_INVULNERABILITY:
+				ent->player->invulnerabilityTime = level.time + 10000;
+				break;
+#endif // MISSIONPACK
 			}
 			break;
-		case EV_USE_ITEM5:		// invulnerability
-			ent->player->invulnerabilityTime = level.time + 10000;
-			break;
-#endif
+		}
 
 		default:
 			break;

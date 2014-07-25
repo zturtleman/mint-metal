@@ -163,8 +163,8 @@ void SP_misc_model( gentity_t *ent ) {
 
 #if 0
 	ent->s.modelindex = G_ModelIndex( ent->model );
-	VectorSet (ent->mins, -16, -16, -16);
-	VectorSet (ent->maxs, 16, 16, 16);
+	VectorSet (ent->s.mins, -16, -16, -16);
+	VectorSet (ent->s.maxs, 16, 16, 16);
 	trap_LinkEntity (ent);
 
 	G_SetOrigin( ent, ent->s.origin );
@@ -713,18 +713,7 @@ static void PortalTouch( gentity_t *self, gentity_t *other, trace_t *trace) {
 //		return;
 //	}
 
-	if ( other->player->ps.powerups[PW_NEUTRALFLAG] ) {		// only happens in One Flag CTF
-		Drop_Item( other, BG_FindItemForPowerup( PW_NEUTRALFLAG ), 0 );
-		other->player->ps.powerups[PW_NEUTRALFLAG] = 0;
-	}
-	else if ( other->player->ps.powerups[PW_REDFLAG] ) {		// only happens in standard CTF
-		Drop_Item( other, BG_FindItemForPowerup( PW_REDFLAG ), 0 );
-		other->player->ps.powerups[PW_REDFLAG] = 0;
-	}
-	else if ( other->player->ps.powerups[PW_BLUEFLAG] ) {	// only happens in standard CTF
-		Drop_Item( other, BG_FindItemForPowerup( PW_BLUEFLAG ), 0 );
-		other->player->ps.powerups[PW_BLUEFLAG] = 0;
-	}
+	TossPlayerGametypeItems( other );
 
 	// find the destination
 	destination = NULL;

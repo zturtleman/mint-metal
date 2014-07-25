@@ -45,11 +45,15 @@ vmCvar_t	m_side;
 vmCvar_t	cg_yawspeed[MAX_SPLITVIEW];
 vmCvar_t	cg_pitchspeed[MAX_SPLITVIEW];
 
+vmCvar_t	cg_yawspeedanalog[MAX_SPLITVIEW];
+vmCvar_t	cg_pitchspeedanalog[MAX_SPLITVIEW];
+
 vmCvar_t	cg_anglespeedkey[MAX_SPLITVIEW];
 
 vmCvar_t	cg_run[MAX_SPLITVIEW];
 
 vmCvar_t	cg_joystickUseAnalog[MAX_SPLITVIEW];
+vmCvar_t	cg_joystickThreshold[MAX_SPLITVIEW];
 
 /*
 ===============================================================================
@@ -78,7 +82,7 @@ typedef struct {
 	unsigned	msec;			// msec down this frame if both a down and up happened
 	qboolean	active;			// current state
 	qboolean	wasPressed;		// set when down, not cleared when up
-	float		lastFraction;	// last analog fraction
+	float		lastFraction[2];	// last fraction
 } kbutton_t;
 
 typedef struct
@@ -95,6 +99,8 @@ typedef struct
 
 clientInput_t cis[MAX_SPLITVIEW];
 
+float CL_AxisFraction( localPlayer_t *player, int axisNum );
+
 void IN_MLookDown( int localPlayerNum ) {
 	cis[localPlayerNum].in_mlooking = qtrue;
 }
@@ -109,6 +115,7 @@ void IN_MLookUp( int localPlayerNum ) {
 // arg1 keynum, arg2 frametime, arg3 analog joystick axis number
 void IN_KeyDown( kbutton_t *b ) {
 	int		k;
+	int		localPlayerNum;
 	int		axisNum;
 	char	c[20];
 	
@@ -126,12 +133,16 @@ void IN_KeyDown( kbutton_t *b ) {
 	trap_Argv( 3, c, sizeof (c) );
 	axisNum = atoi( c );
 
+	localPlayerNum = Com_LocalPlayerForCvarName( CG_Argv( 0 ) );
+
 	if ( !b->down[0] ) {
 		b->down[0] = k;
 		b->axisNum[0] = axisNum;
+		b->lastFraction[0] = CL_AxisFraction( &cg.localPlayers[localPlayerNum], axisNum );
 	} else if ( !b->down[1] ) {
 		b->down[1] = k;
 		b->axisNum[1] = axisNum;
+		b->lastFraction[1] = CL_AxisFraction( &cg.localPlayers[localPlayerNum], axisNum );
 	} else {
 		Com_Printf ("Three keys down for a button!\n");
 		return;
@@ -147,8 +158,6 @@ void IN_KeyDown( kbutton_t *b ) {
 
 	b->active = qtrue;
 	b->wasPressed = qtrue;
-
-	b->lastFraction = 1;
 }
 
 void IN_KeyUp( kbutton_t *b ) {
@@ -203,9 +212,10 @@ Returns the fraction of the axis press
 float CL_AxisFraction( localPlayer_t *player, int axisNum ) {
 	float fraction;
 	int axis;
+	int localPlayerNum = player - cg.localPlayers;
 
-	// non-analog keystate
-	if ( axisNum == 0 ) {
+	// non-analog keystate or analog disabled
+	if ( axisNum == 0 || !cg_joystickUseAnalog[localPlayerNum].integer ) {
 		return 1;
 	}
 
@@ -220,7 +230,9 @@ float CL_AxisFraction( localPlayer_t *player, int axisNum ) {
 		fraction = 0;
 		CG_Printf("WARNING: Axis (%d) fraction 0, but still input system think it's pressed\n", axisNum);
 	} else {
-		fraction = ( (float)abs( player->joystickAxis[ axis ] ) ) / 32767.0f;
+		float threshold = 32767.0f * cg_joystickThreshold[localPlayerNum].value;
+
+		fraction = ( (float)abs( player->joystickAxis[ axis ] ) - threshold ) / ( 32767.0f - threshold );
 	}
 
 	return fraction;
@@ -230,14 +242,18 @@ float CL_AxisFraction( localPlayer_t *player, int axisNum ) {
 ===============
 CL_KeyState
 
-Returns the fraction of the frame that the key was down
+Gets fraction of the frame that the key was down as digital and analog input
 ===============
 */
-float CL_KeyState( localPlayer_t *player, kbutton_t *key ) {
+void CL_KeyStateSeparate( localPlayer_t *player, kbutton_t *key, float *pDigitalFrac, float *pAnalogFrac ) {
 	float		val;
 	int			msec;
-	float		fraction;
+	int			i;
+	float		fraction[2];
+	float		digitalFrac, analogFrac;
 	int			localPlayerNum;
+
+	localPlayerNum = player - cg.localPlayers;
 
 	msec = key->msec;
 	key->msec = 0;
@@ -251,29 +267,38 @@ float CL_KeyState( localPlayer_t *player, kbutton_t *key ) {
 		}
 		key->downtime = in_frameTime;
 
-		localPlayerNum = player - cg.localPlayers;
-		if ( cg_joystickUseAnalog[localPlayerNum].integer ) {
-			fraction = 0;
-
-			if ( key->down[0] ) {
-				fraction += CL_AxisFraction( player, key->axisNum[0] );
+		for ( i = 0; i < 2; ++i ) {
+			if ( key->down[i] ) {
+				fraction[i] = CL_AxisFraction( player, key->axisNum[i] );
+			} else {
+				fraction[i] = 0;
 			}
 
-			if ( key->down[1] ) {
-				fraction += CL_AxisFraction( player, key->axisNum[1] );
-			}
-
-			if ( fraction > 1 ) {
-				fraction = 1;
-			}
-		} else {
-			fraction = 1;
+			key->lastFraction[i] = fraction[i];
 		}
-
-		key->lastFraction = fraction;
 	} else {
 		// use fraction from last frame to avoid boost frame after releasing joystick axis
-		fraction = key->lastFraction;
+		fraction[0] = key->lastFraction[0];
+		fraction[1] = key->lastFraction[1];
+	}
+
+	analogFrac = 0;
+	digitalFrac = 0;
+
+	for ( i = 0; i < 2; ++i ) {
+		if ( key->axisNum[i] && cg_joystickUseAnalog[localPlayerNum].integer ) {
+			analogFrac += fraction[i];
+		} else {
+			digitalFrac += fraction[i];
+		}
+	}
+
+	if ( analogFrac > 1 ) {
+		analogFrac = 1;
+	}
+
+	if ( digitalFrac > 1 ) {
+		digitalFrac = 1;
 	}
 
 #if 0
@@ -282,17 +307,26 @@ float CL_KeyState( localPlayer_t *player, kbutton_t *key ) {
 	}
 #endif
 
-	val = (float)msec / in_frameMsec * fraction;
-	if ( val < 0 ) {
-		val = 0;
-	}
-	if ( val > 1 ) {
-		val = 1;
-	}
+	val = (float)msec / in_frameMsec;
 
-	return val;
+	*pDigitalFrac = Com_Clamp( 0, 1, val * digitalFrac );
+	*pAnalogFrac = Com_Clamp( 0, 1, val * analogFrac );
 }
 
+/*
+===============
+CL_KeyState
+
+Returns the fraction of the frame that the key was down
+===============
+*/
+float CL_KeyState( localPlayer_t *player, kbutton_t *key ) {
+	float digital, analog;
+
+	CL_KeyStateSeparate( player, key, &digital, &analog );
+
+	return Com_Clamp( 0, 1, digital + analog );
+}
 
 
 void IN_UpDown( int localPlayerNum ) {IN_KeyDown(&cis[localPlayerNum].in_up);}
@@ -375,6 +409,7 @@ Moves the local angle positions
 */
 void CG_AdjustAngles( localPlayer_t *player, clientInput_t *ci ) {
 	float	speed;
+	float	digital, analog;
 	int		localPlayerNum = player - cg.localPlayers;
 	
 	if ( ci->in_speed.active ) {
@@ -384,12 +419,22 @@ void CG_AdjustAngles( localPlayer_t *player, clientInput_t *ci ) {
 	}
 
 	if ( !ci->in_strafe.active ) {
-		player->viewangles[YAW] -= speed*cg_yawspeed[localPlayerNum].value*CL_KeyState (player, &ci->in_right);
-		player->viewangles[YAW] += speed*cg_yawspeed[localPlayerNum].value*CL_KeyState (player, &ci->in_left);
+		CL_KeyStateSeparate (player, &ci->in_right, &digital, &analog);
+		player->viewangles[YAW] -= speed*cg_yawspeed[localPlayerNum].value * digital;
+		player->viewangles[YAW] -= speed*cg_yawspeedanalog[localPlayerNum].value * analog;
+
+		CL_KeyStateSeparate (player, &ci->in_left, &digital, &analog);
+		player->viewangles[YAW] += speed*cg_yawspeed[localPlayerNum].value * digital;
+		player->viewangles[YAW] += speed*cg_yawspeedanalog[localPlayerNum].value * analog;
 	}
 
-	player->viewangles[PITCH] -= speed*cg_pitchspeed[localPlayerNum].value * CL_KeyState (player, &ci->in_lookup);
-	player->viewangles[PITCH] += speed*cg_pitchspeed[localPlayerNum].value * CL_KeyState (player, &ci->in_lookdown);
+	CL_KeyStateSeparate (player, &ci->in_lookup, &digital, &analog);
+	player->viewangles[PITCH] -= speed*cg_pitchspeed[localPlayerNum].value * digital;
+	player->viewangles[PITCH] -= speed*cg_pitchspeedanalog[localPlayerNum].value * analog;
+
+	CL_KeyStateSeparate (player, &ci->in_lookdown, &digital, &analog);
+	player->viewangles[PITCH] += speed*cg_pitchspeed[localPlayerNum].value * digital;
+	player->viewangles[PITCH] += speed*cg_pitchspeedanalog[localPlayerNum].value * analog;
 }
 
 /*
@@ -573,9 +618,12 @@ void CG_RegisterInputCvars( void ) {
 	for (i = 0; i < CG_MaxSplitView(); i++) {
 		trap_Cvar_Register( &cg_yawspeed[i], Com_LocalPlayerCvarName(i, "cg_yawspeed"), "140", CVAR_ARCHIVE );
 		trap_Cvar_Register( &cg_pitchspeed[i], Com_LocalPlayerCvarName(i, "cg_pitchspeed"), "140", CVAR_ARCHIVE );
+		trap_Cvar_Register( &cg_yawspeedanalog[i], Com_LocalPlayerCvarName(i, "cg_yawspeedanalog"), "200", CVAR_ARCHIVE );
+		trap_Cvar_Register( &cg_pitchspeedanalog[i], Com_LocalPlayerCvarName(i, "cg_pitchspeedanalog"), "200", CVAR_ARCHIVE );
 		trap_Cvar_Register( &cg_anglespeedkey[i], Com_LocalPlayerCvarName(i, "cg_anglespeedkey"), "1.5", 0 );
 		trap_Cvar_Register( &cg_run[i], Com_LocalPlayerCvarName(i, "cl_run"), "1", CVAR_ARCHIVE ); // ZTM: NOTE: changing name breaks team arena menu scripts
 		trap_Cvar_Register( &cg_joystickUseAnalog[i], Com_LocalPlayerCvarName(i, "in_joystickUseAnalog"), "1", CVAR_ARCHIVE );
+		trap_Cvar_Register( &cg_joystickThreshold[i], Com_LocalPlayerCvarName(i, "in_joystickThreshold"), "0.15", CVAR_ARCHIVE );
 	}
 }
 
@@ -597,9 +645,12 @@ void CG_UpdateInputCvars( void ) {
 	for (i = 0; i < CG_MaxSplitView(); i++) {
 		trap_Cvar_Update( &cg_yawspeed[i] );
 		trap_Cvar_Update( &cg_pitchspeed[i] );
+		trap_Cvar_Update( &cg_yawspeedanalog[i] );
+		trap_Cvar_Update( &cg_pitchspeedanalog[i] );
 		trap_Cvar_Update( &cg_anglespeedkey[i] );
 		trap_Cvar_Update( &cg_run[i] );
 		trap_Cvar_Update( &cg_joystickUseAnalog[i] );
+		trap_Cvar_Update( &cg_joystickThreshold[i] );
 	}
 }
 
