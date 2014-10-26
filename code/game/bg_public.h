@@ -351,7 +351,6 @@ typedef struct playerState_s {
 
 	int			externalEvent;	// events set on player from another source
 	int			externalEventParm;
-	int			externalEventTime;
 
 	//int			playerNum;		// ranges from 0 to MAX_CLIENTS-1
 	int			weapon;			// copied to entityState_t->weapon
@@ -519,13 +518,13 @@ void Pmove (pmove_t *pmove);
 typedef enum {
 	STAT_HEALTH,
 	STAT_HOLDABLE_ITEM,
-#ifdef MISSIONPACK
-	STAT_PERSISTANT_POWERUP,
-#endif
 	STAT_WEAPONS,					// 16 bit fields
 	STAT_ARMOR,				
 	STAT_DEAD_YAW,					// look this direction when dead (FIXME: get rid of?)
-	STAT_MAX_HEALTH					// health / armor limit, changable by handicap
+	STAT_MAX_HEALTH,				// health / armor limit, changable by handicap
+//#ifdef MISSIONPACK
+	STAT_PERSISTANT_POWERUP
+//#endif
 } statIndex_t;
 
 
@@ -1023,7 +1022,6 @@ typedef struct gitem_s {
 
 	int			giTag;
 
-	char		*precaches;		// string of all models and images this item will use
 	char		*sounds;		// string of all sounds this item will use
 } gitem_t;
 
