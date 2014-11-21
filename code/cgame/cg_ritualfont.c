@@ -214,12 +214,12 @@ qboolean CG_LoadRitualFont( const char *fontname, fontInfo_t *font ) {
 				font->glyphs[i].left = 0;
 				font->glyphs[i].pitch = locations[2];
 				font->glyphs[i].xSkip = locations[2];
+				font->glyphs[i].imageWidth = locations[2];
+				font->glyphs[i].imageHeight = locations[3];
 				font->glyphs[i].s = locations[0] / imageWidth;
 				font->glyphs[i].t = locations[1] / imageHeight;
 				font->glyphs[i].s2 = (locations[0] + locations[2]) / imageWidth;
 				font->glyphs[i].t2 = (locations[1] + locations[3]) / imageHeight;
-				font->glyphs[i].imageWidth = font->glyphs[i].xSkip = font->glyphs[i].pitch = locations[2];
-				font->glyphs[i].imageHeight = font->glyphs[i].height = locations[3];
 				font->glyphs[i].glyph = fontShader;
 				Q_strncpyz(font->glyphs[i].shaderName, shadername, sizeof(font->glyphs[0].shaderName));
 			}
