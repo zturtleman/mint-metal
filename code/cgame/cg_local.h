@@ -1601,6 +1601,11 @@ qboolean CG_AnyScoreboardShowing( void );
 
 
 //
+// cg_ritualfont.c
+//
+qboolean CG_LoadRitualFont( const char *fontname, fontInfo_t *font );
+
+//
 // cg_player.c
 //
 void CG_Player( centity_t *cent );
