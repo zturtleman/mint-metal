@@ -225,6 +225,365 @@ void SP_script_object( void ) {
 	}
 }
 
+
+// Load the TIKI file used by sky_edneskynoground (and other basic objects)
+// TODO: Should create a new bg_*.c file for tiki file loading
+// TODO?: support loading binary ".cik" files. It's probably the dtiki* structs in FAKK's qfiles.h.
+qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, vec3_t offset, float *scale ) {
+	char		*text_p;
+	int			len;
+	int			i;
+	char		*token;
+	char		text[20000];
+	fileHandle_t	f;
+	int			braceLevel;
+	char		path[MAX_QPATH];
+	char		anim[MAX_QPATH];
+	enum {
+		TIKI_NONE,
+		TIKI_SERVER,
+		TIKI_CLIENT,
+		TIKI_SETUP,
+		TIKI_INIT,
+		TIKI_INIT_SERVER,
+		TIKI_INIT_CLIENT,
+		TIKI_ANIMATIONS,
+		TIKI_ANIMATIONS_SERVER,
+		TIKI_ANIMATIONS_CLIENT,
+		TIKI_END
+	};
+	int section;
+
+	// load the file
+	len = trap_FS_FOpenFile( filename, &f, FS_READ );
+	if ( len <= 0 ) {
+		return qfalse;
+	}
+	if ( len >= sizeof( text ) - 1 ) {
+		CG_Printf( "File %s too long\n", filename );
+		trap_FS_FCloseFile( f );
+		return qfalse;
+	}
+	trap_FS_Read( text, len, f );
+	text[len] = 0;
+	trap_FS_FCloseFile( f );
+
+	// parse the text
+	text_p = text;
+
+	section = TIKI_NONE;
+	braceLevel = 0;
+	path[0] = 0;
+	anim[0] = 0;
+
+	// check header
+	token = COM_Parse( &text_p );
+
+	if ( Q_stricmp( token, "TIKI" ) ) {
+		CG_Printf("WARNING: %s is not a tiki file\n", filename );
+		return qfalse;
+	}
+
+	// read optional parameters
+	while ( 1 ) {
+		token = COM_Parse( &text_p );
+		if ( !*token ) {
+			break;
+		}
+
+		//
+		// section handling
+		//
+		if ( !Q_stricmp( token, "setup" ) ) {
+			token = COM_Parse( &text_p );
+			if ( Q_stricmp( token, "{" ) ) {
+				CG_Printf("WARNING: Missing '{' for setup in '%s'\n", filename );
+				return qfalse;
+			}
+			section = TIKI_SETUP;
+			continue;
+		}
+		if ( !Q_stricmp( token, "init" ) ) {
+			token = COM_Parse( &text_p );
+			if ( Q_stricmp( token, "{" ) ) {
+				CG_Printf("WARNING: Missing '{' for init in '%s'\n", filename );
+				return qfalse;
+			}
+			section = TIKI_INIT;
+			continue;
+		}
+		if ( !Q_stricmp( token, "animations" ) ) {
+			token = COM_Parse( &text_p );
+			if ( Q_stricmp( token, "{" ) ) {
+				CG_Printf("WARNING: Missing '{' for animations in '%s'\n", filename );
+				return qfalse;
+			}
+			section = TIKI_ANIMATIONS;
+			continue;
+		}
+		if ( !Q_stricmp( token, "server" ) ) {
+			token = COM_Parse( &text_p );
+			if ( Q_stricmp( token, "{" ) ) {
+				CG_Printf("WARNING: Missing '{' for server in '%s'\n", filename );
+				return qfalse;
+			}
+			if ( section == TIKI_NONE )
+				section = TIKI_SERVER;
+			else if ( section == TIKI_INIT )
+				section = TIKI_INIT_SERVER;
+			else if ( section == TIKI_ANIMATIONS )
+				section = TIKI_ANIMATIONS_SERVER;
+			else
+				CG_Printf("DEBUG: Found 'server' in unsupported section (internal #%d)\n", section );
+			continue;
+		}
+		if ( !Q_stricmp( token, "client" ) ) {
+			token = COM_Parse( &text_p );
+			if ( Q_stricmp( token, "{" ) ) {
+				CG_Printf("WARNING: Missing '{' for client in '%s'\n", filename );
+				return qfalse;
+			}
+			if ( section == TIKI_NONE )
+				section = TIKI_CLIENT;
+			else if ( section == TIKI_INIT )
+				section = TIKI_INIT_CLIENT;
+			else if ( section == TIKI_ANIMATIONS )
+				section = TIKI_ANIMATIONS_CLIENT;
+			else
+				CG_Printf("DEBUG: Found 'client' in unsupported section (internal #%d)\n", section );
+			continue;
+		}
+		// unnamed { } section
+		if ( !Q_stricmp( token, "{" ) ) {
+			braceLevel++;
+			continue;
+		}
+		if ( !Q_stricmp( token, "}" ) ) {
+			if ( braceLevel ) {
+				braceLevel--;
+				continue;
+			}
+
+			if ( section == TIKI_NONE ) {
+				CG_Printf("WARNING: Unexpected '}' in '%s'\n", filename );
+			} else if ( section == TIKI_INIT_SERVER || section == TIKI_INIT_CLIENT ) {
+				section = TIKI_INIT;
+			} else if ( section == TIKI_ANIMATIONS_SERVER || section == TIKI_ANIMATIONS_CLIENT ) {
+				section = TIKI_ANIMATIONS;
+			} else {
+				section = TIKI_NONE;
+			}
+			continue;
+		}
+
+		//
+		// keyword handling
+		//
+		// setup and init-server
+		if ( section == TIKI_SETUP || section == TIKI_INIT_SERVER ) {
+			if ( !Q_stricmp( token, "surface" ) ) {
+				qhandle_t hShader;
+				char shaderName[MAX_QPATH];
+
+				// surface name
+				token = COM_Parse( &text_p );
+				Q_strncpyz( anim, token, sizeof ( anim ) );
+
+				// command
+				token = COM_Parse( &text_p );
+				if ( !Q_stricmp( token, "+nodraw" ) ) {
+					hShader = cgs.media.nodrawShader;
+				} else if ( !Q_stricmp( token, "shader" ) ) {
+					token = COM_Parse( &text_p );
+
+					// TODO: is there a way to get rid of the (currently needed) fallback case?
+					//       can I just check if there is a '/' or '\\' to use without adding path?
+					Q_strncpyz( shaderName, token, sizeof ( shaderName ) );
+					hShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, qtrue );
+					if ( !hShader && path[0] ) {
+						Com_sprintf( shaderName, sizeof ( shaderName ), "%s/%s", path, token );
+						hShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, qtrue );
+					}
+
+					if ( !hShader ) {
+						CG_Printf("WARNING: Failed to load shader '%s' for surface '%s' in '%s'\n", shaderName, anim, filename );
+					}
+				} else if ( !Q_stricmp( token, "flags" ) ) {
+					token = COM_Parse( &text_p );
+					// NOTE: nomipmaps can be set _after_ setting the shader names,
+					//       which doesn't work with my current code.
+					// "surface all flags nomipmaps"
+					if ( !Q_stricmp( token, "nomipmaps" ) ) {
+						// TODO
+						//CG_Printf("WARNING: nomipmaps not supported yet, in '%s'\n", token, filename );
+					} else {
+						CG_Printf("WARNING: Unknown surface flag '%s' in '%s'\n", token, filename );
+					}
+					continue;
+				} else {
+					CG_Printf("WARNING: Unknown surface keyword '%s' in '%s'\n", token, filename );
+					continue;
+				}
+
+				if ( skin->numSurfaces >= MAX_CG_SKIN_SURFACES ) {
+					Com_Printf( "WARNING: Ignoring surfaces in '%s', the max is %d surfaces!\n", filename, MAX_CG_SKIN_SURFACES );
+					break;
+				}
+
+				skin->surfaces[skin->numSurfaces] = trap_R_AllocSkinSurface( anim, hShader );
+				skin->numSurfaces++;
+				continue;
+			}
+		}
+
+		// setup
+		if ( section == TIKI_SETUP ) {
+			if ( !Q_stricmp( token, "origin" ) ) {
+				for ( i = 0; i < 3; i++ ) {
+					token = COM_Parse( &text_p );
+					offset[i] = atof( token );
+				}
+				continue;
+			} else if ( !Q_stricmp( token, "scale" ) ) {
+				token = COM_Parse( &text_p );
+				*scale = atof( token );
+				continue;
+			} else if ( !Q_stricmp( token, "path" ) ) {
+				token = COM_Parse( &text_p );
+				Q_strncpyz( path, token, sizeof ( path ) );
+				continue;
+			} else {
+				Com_Printf( "WARNING: Unknown setup keyword '%s' in %s\n", token, filename );
+				SkipRestOfLine( &text_p );
+				continue;
+			}
+		}
+
+		// animations
+		if ( section == TIKI_ANIMATIONS ) {
+			if ( !Q_stricmp( token, "idle" ) ) {
+				token = COM_Parse( &text_p );
+
+				Com_sprintf( anim, sizeof ( anim ), "%s/%s", path, token );
+
+				*hModel = trap_R_RegisterModel( anim );
+				continue;
+			} else {
+				Com_Printf( "WARNING: Unknown tiki animation '%s' in %s\n", token, filename );
+				SkipRestOfLine( &text_p );
+				continue;
+			}
+		}
+
+		Com_Printf( "WARNING: Unknown tiki keyword '%s' in %s\n", token, filename );
+		SkipRestOfLine( &text_p );
+	}
+
+	return qtrue;
+}
+
+// spawn 'idle' model specified by tiki file
+// ZTM: TODO?: store info parsed from file instead of re-parsing it each time.
+void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, vec3_t angles ) {
+	float tikiScale;
+	vec3_t vScale;
+	vec3_t offset;
+	cg_gamemodel_t *gamemodel;
+	int i;
+	qhandle_t hModel;
+
+	CG_Printf("DEBUG: Adding tiki model '%s' at %s, yaw %f\n", tikiFile, vtos( origin ), angles[YAW] );
+
+	if ( cg.numMiscGameModels >= MAX_STATIC_GAMEMODELS ) {
+		CG_Error( "^1MAX_STATIC_GAMEMODELS(%i) hit", MAX_STATIC_GAMEMODELS );
+	}
+
+	VectorSet( offset, 0, 0, 0 );
+
+	gamemodel = &cgs.miscGameModels[cg.numMiscGameModels];
+
+	hModel = 0;
+
+	if ( !CG_LoadTiki( tikiFile, &gamemodel->skin, &hModel, offset, &tikiScale ) ) {
+		return;
+	}
+	cg.numMiscGameModels++;
+
+	VectorAdd( origin, offset, gamemodel->org );
+
+	// multiply entity scale by scale from tiki file
+	scale *= tikiScale;
+	VectorSet( vScale, scale, scale, scale );
+
+	if ( !hModel ) {
+		CG_Printf( "WARNING: no model loaded for '%s'\n", tikiFile );
+	}
+
+	gamemodel->model = hModel;
+
+	AnglesToAxis( angles, gamemodel->axes );
+	for ( i = 0; i < 3; i++ ) {
+		VectorScale( gamemodel->axes[i], vScale[i], gamemodel->axes[i] );
+	}
+
+	// Disabled because it causes issues drawing sky_ednesky / sky_edneskynoground
+	if ( 0 && gamemodel->model ) {
+		vec3_t mins, maxs;
+
+		trap_R_ModelBounds( gamemodel->model, mins, maxs, 0, 0, 0 );
+
+		for ( i = 0; i < 3; i++ ) {
+			mins[i] *= vScale[i];
+			maxs[i] *= vScale[i];
+		}
+
+		gamemodel->radius = RadiusFromBounds( mins, maxs );
+	} else {
+		gamemodel->radius = 0;
+	}
+
+}
+
+// handle spawning the various tiki object entities
+// there are many different class names, but they all include 'model' and other settings.
+// I don't think the class name itself is important, not entirely sure though.
+// Not sure what spawnflags is suppose to do.
+void SP_generic_tiki_model( void ) {
+	char filename[MAX_QPATH];
+	char *classname;
+	char *model;
+	vec3_t origin;
+	float scale;
+	vec3_t angles;
+	float angle;
+	int make_static;
+
+	CG_SpawnString( "classname", "", &classname );
+	CG_SpawnString( "model", "", &model );
+	CG_SpawnVector( "origin", "0 0 0", origin );
+	CG_SpawnFloat( "scale", "1", &scale );
+	CG_SpawnInt( "make_static", "0", &make_static );
+
+	if ( !CG_SpawnVector( "angles", "0 0 0", angles ) ) {
+		if ( CG_SpawnFloat( "angle", "0", &angle ) ) {
+			angles[YAW] = angle;
+		}
+	}
+
+	Com_sprintf( filename, sizeof ( filename ), "models/%s", model );
+
+	// static means it is baked into the BSP, useful for seeing if my code matches the intended behavior though
+	if ( make_static ) {
+		//CG_Printf("DEBUG: Entity '%s': ignoring static tiki model '%s',\n", classname, filename );
+		return;
+	} else {
+		CG_Printf("DEBUG: Entity '%s': spawning tiki model '%s'\n", classname, filename );
+	}
+
+	CG_AddStaticTikiModel( filename, origin, scale, angles );
+}
+
+
 typedef struct {
 	char    *name;
 	void ( *spawn )( void );
@@ -234,7 +593,9 @@ spawn_t spawns[] = {
 	{0, 0},
 	{"misc_gamemodel",               SP_misc_gamemodel},
 	{"props_skyportal",              SP_skyportal},
-	{"script_object",                SP_script_object}
+
+	// fakk entities
+	{"script_object",                SP_script_object},
 };
 
 int numSpawns = ARRAY_LEN( spawns );
@@ -266,6 +627,14 @@ void CG_ParseEntityFromSpawnVars( void ) {
 			if ( !Q_stricmp( spawns[i].name, classname ) ) {
 				spawns[i].spawn();
 				break;
+			}
+		}
+
+		// Try generic tiki object (no idea if this is a 'proper' thing to do)
+		if ( i == numSpawns ) {
+			char *model;
+			if ( CG_SpawnString( "model", "", &model ) && COM_CompareExtension( model, ".tik" ) ) {
+				SP_generic_tiki_model();
 			}
 		}
 	}

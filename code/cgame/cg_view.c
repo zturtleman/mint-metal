@@ -641,6 +641,7 @@ static int CG_CalcFov( void ) {
 CG_DrawSkyBoxPortal
 ==============
 */
+void CG_DrawMiscGamemodels( void ); // cg_draw.c
 void CG_DrawSkyBoxPortal( void ) {
 	refdef_t backuprefdef;
 
@@ -666,6 +667,9 @@ void CG_DrawSkyBoxPortal( void ) {
 	if ( cg_skybox.integer == 2 ) {
 		cg.refdef.rdflags |= RDF_ONLYSKY;
 	}
+
+	// some FAKK skies are a model
+	CG_DrawMiscGamemodels();
 
 	// draw the skybox
 	trap_R_RenderScene( &cg.refdef );
