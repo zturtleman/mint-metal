@@ -46,7 +46,7 @@ qboolean CG_LoadRitualFont( const char *fontname, fontInfo_t *font ) {
 	int				i, len;
 	char			*p, *token;
 	qboolean		foundIndirections;
-//	float			height;
+	float			height;
 	float			aspect;
 	int				indirections[256];
 	int				numIndirections;
@@ -99,7 +99,7 @@ qboolean CG_LoadRitualFont( const char *fontname, fontInfo_t *font ) {
 		}
 
 		if ( Q_stricmp( token, "height" ) == 0 ) {
-			// height of glyphs (not used for anything?)
+			// height of glyphs
 			token = COM_Parse(&p);
 
 			if ( !*token ) {
@@ -107,7 +107,7 @@ qboolean CG_LoadRitualFont( const char *fontname, fontInfo_t *font ) {
 				return qfalse;
 			}
 
-//			height = atof( token );
+			height = atof( token );
 		} else if ( Q_stricmp( token, "aspect" ) == 0 ) {
 			// aspect of font image
 			token = COM_Parse(&p);
@@ -233,7 +233,7 @@ qboolean CG_LoadRitualFont( const char *fontname, fontInfo_t *font ) {
 		return qfalse;
 	}
 
-	font->glyphScale = 1;
+	font->glyphScale = 48.0f / height;
 	Q_strncpyz(font->name, filename, sizeof(font->name));
 	return qtrue;
 }
