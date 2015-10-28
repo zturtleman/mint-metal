@@ -3081,6 +3081,7 @@ void CG_DrawMiscGamemodels( void ) {
 		ent.hModel = cgs.miscGameModels[i].model;
 
 		ent.customSkin = CG_AddSkinToFrame( &cgs.miscGameModels[i].skin );
+		ent.customShader = cgs.miscGameModels[i].customShader;
 		trap_R_AddRefEntityToScene( &ent );
 
 		drawn++;

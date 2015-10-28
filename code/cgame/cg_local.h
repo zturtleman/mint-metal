@@ -1195,6 +1195,7 @@ typedef struct {
 typedef struct cg_gamemodel_s {
 	qhandle_t model;
 	cgSkin_t skin;
+	qhandle_t customShader;
 	vec3_t org;
 	vec3_t axes[3];
 	vec_t radius;

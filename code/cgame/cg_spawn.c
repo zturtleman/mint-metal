@@ -225,23 +225,41 @@ void SP_script_object( void ) {
 	}
 }
 
+#define MAX_TIKI_SURFACES MAX_CG_SKIN_SURFACES
+
+typedef struct {
+	char name[MAX_QPATH];
+	char shader[MAX_QPATH];
+	qboolean nodraw;
+	qboolean nomipmaps;
+} tikiSurface_t;
+
+typedef struct {
+	vec3_t offset;
+	float scale;
+	float radius;
+	char path[MAX_QPATH];
+	char allShader[MAX_QPATH];
+
+	tikiSurface_t surfaces[MAX_TIKI_SURFACES];
+	int numSurfaces;
+} tikiModel_t;
+
 
 // Load the TIKI file used by sky_edneskynoground (and other basic objects)
 // TODO: Should create a new bg_*.c file for tiki file loading
 // TODO?: support loading binary ".cik" files. It's probably the dtiki* structs in FAKK's qfiles.h.
-char tikiText[120000]; // julie_base.tik is really long
-qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, vec3_t offset, float *scale, char *outPath ) {
+char tikiText[2][120000]; // julie_base.tik is really long
+int tikiTextIndex = 0;
+qboolean CG_LoadTiki( const char *filename, tikiModel_t *modelInfo, qhandle_t *hModel ) {
 	char		*text_p;
 	int			len;
 	int			i;
 	char		*token;
-	
 	fileHandle_t	f;
-	char		path[MAX_QPATH];
 	char		skelmodel[MAX_QPATH];
 	char		animName[MAX_QPATH];
 	char		animFile[MAX_QPATH];
-	char		surfName[MAX_QPATH];
 	enum {
 		TIKI_NONE,
 		TIKI_SERVER,
@@ -263,32 +281,36 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 	} parseStack[32];
 	int stackLevel;
 
+	Com_Memset( modelInfo, 0, sizeof ( *modelInfo ) );
+
 	// load the file
 	len = trap_FS_FOpenFile( filename, &f, FS_READ );
 	if ( len <= 0 ) {
 		return qfalse;
 	}
-	if ( len >= sizeof( tikiText ) - 1 ) {
+	if ( len >= sizeof( tikiText[0] ) - 1 ) {
 		CG_Printf( "File %s too long\n", filename );
 		trap_FS_FCloseFile( f );
 		return qfalse;
 	}
-	trap_FS_Read( tikiText, len, f );
-	tikiText[len] = 0;
+	trap_FS_Read( tikiText[tikiTextIndex], len, f );
+	tikiText[tikiTextIndex][len] = 0;
 	trap_FS_FCloseFile( f );
 
 	// parse the text
-	text_p = tikiText;
+	text_p = tikiText[tikiTextIndex];
+
+	tikiTextIndex ^= 1;
 
 	Com_Memset( &parseStack, 0, sizeof ( parseStack ) );
 	stackLevel = 0;
 
 	section = TIKI_NONE;
-	path[0] = 0;
 	skelmodel[0] = 0;
 	animName[0] = 0;
 	animFile[0] = 0;
-	surfName[0] = 0;
+
+	COM_BeginParseSession( filename );
 
 	// read optional parameters
 	while ( 1 ) {
@@ -415,9 +437,10 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 				token = COM_Parse( &text_p );
 				Q_strncpyz( include, token, sizeof ( include ) );
 
-				if ( !CG_LoadTiki( include, skin, hModel, offset, scale, path ) ) {
+				if ( !CG_LoadTiki( include, modelInfo, hModel ) ) {
 					CG_Printf("WARNING: Failed to load '%s' included in '%s'\n", include, filename );
 				}
+
 				continue;
 			}
 			// UNIMPLIMENTED: $define <name> <value>
@@ -431,59 +454,85 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 		// setup and init-server
 		if ( section == TIKI_SETUP || section == TIKI_INIT_SERVER ) {
 			if ( !Q_stricmp( token, "surface" ) ) {
-				qhandle_t hShader;
-				char shaderName[MAX_QPATH];
+				tikiSurface_t *surface;
+				char surfName[MAX_QPATH];
+				char command[MAX_QPATH];
+				char argument[MAX_QPATH];
+				qboolean allSurfaces;
 
 				// surface name
+				// special handling for "all"
+				// TODO: Special handling for filtered names "cap*" in see models/creeper.tik
 				token = COM_Parse( &text_p );
 				Q_strncpyz( surfName, token, sizeof ( surfName ) );
 
 				// command
 				token = COM_Parse( &text_p );
-				if ( !Q_stricmp( token, "+nodraw" ) ) {
-					hShader = cgs.media.nodrawShader;
-				} else if ( !Q_stricmp( token, "-nodraw" ) ) {
-					// NOTE: There can be a included tiki file that sets no draw and then this file wants to enable it.
-					//       Will need to rework how skins are handled.
-				} else if ( !Q_stricmp( token, "shader" ) ) {
-					token = COM_Parse( &text_p );
+				Q_strncpyz( command, token, sizeof ( command ) );
 
-					// TODO: is there a way to get rid of the (currently needed) fallback case?
-					//       can I just check if there is a '/' or '\\' to use without adding path?
-					Q_strncpyz( shaderName, token, sizeof ( shaderName ) );
-					hShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, qtrue );
-					if ( !hShader && path[0] ) {
-						Com_sprintf( shaderName, sizeof ( shaderName ), "%s/%s", path, token );
-						hShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, qtrue );
-					}
-
-					if ( !hShader ) {
-						CG_Printf("WARNING: Failed to load shader '%s' for surface '%s' in '%s'\n", shaderName, surfName, filename );
-					}
-				} else if ( !Q_stricmp( token, "flags" ) ) {
+				// if the command has an argument, read it
+				if ( !Q_stricmp( command, "shader" ) || !Q_stricmp( command, "flags" ) ) {
 					token = COM_Parse( &text_p );
-					// NOTE: nomipmaps can be set _after_ setting the shader names,
-					//       which doesn't work with my current code.
-					// "surface all flags nomipmaps"
-					if ( !Q_stricmp( token, "nomipmaps" ) ) {
-						// TODO
-						//CG_Printf("WARNING: nomipmaps not supported yet, in '%s'\n", token, filename );
-					} else {
-						CG_Printf("WARNING: Unknown surface flag '%s' in '%s'\n", token, filename );
-					}
-					continue;
+					Q_strncpyz( argument, token, sizeof ( argument ) );
 				} else {
-					CG_Printf("WARNING: Unknown surface keyword '%s' in '%s'\n", token, filename );
-					continue;
+					argument[0] = 0;
 				}
 
-				if ( skin->numSurfaces >= MAX_CG_SKIN_SURFACES ) {
-					Com_Printf( "WARNING: Ignoring surfaces in '%s', the max is %d surfaces!\n", filename, MAX_CG_SKIN_SURFACES );
-					break;
+				allSurfaces = Q_stricmp( surfName, "all" ) == 0;
+
+				if ( allSurfaces && !Q_stricmp( command, "shader" ) ) {
+					Q_strncpyz( modelInfo->allShader, argument, sizeof ( modelInfo->allShader ) );
 				}
 
-				skin->surfaces[skin->numSurfaces] = trap_R_AllocSkinSurface( surfName, hShader );
-				skin->numSurfaces++;
+				// find surfaces
+				for ( i = 0, surface = modelInfo->surfaces; i < modelInfo->numSurfaces + 1; i++, surface++ ) {
+					// checked all surfaces, allocate surface if it did not exist
+					if ( i == modelInfo->numSurfaces ) {
+						if ( allSurfaces ) {
+							break;
+						}
+
+						if ( modelInfo->numSurfaces >= MAX_TIKI_SURFACES ) {
+							Com_Printf( "WARNING: Too many surfaces in '%s' (max is %d)\n", filename, MAX_TIKI_SURFACES );
+							break;
+						}
+
+						Q_strncpyz( surface->name, surfName, sizeof ( surface->name ) );
+						Q_strncpyz( surface->shader, "unset", sizeof ( surface->shader ) );
+						//Com_Printf( "DEBUG: Create surface (%d) '%s' in '%s'\n", modelInfo->numSurfaces, surfName, filename );
+						modelInfo->numSurfaces++;
+					}
+
+					if ( !allSurfaces && Q_stricmp( surfName, surface->name ) != 0 ) {
+						continue;
+					}
+
+					if ( !Q_stricmp( command, "+nodraw" ) ) {
+						surface->nodraw = qtrue;
+					} else if ( !Q_stricmp( command, "-nodraw" ) ) {
+						surface->nodraw = qfalse;
+					} else if ( !Q_stricmp( command, "shader" ) ) {
+						Q_strncpyz( surface->shader, argument, sizeof ( surface->shader ) );
+					} else if ( !Q_stricmp( command, "flags" ) ) {
+						// nomipmaps can be set after setting the shader names
+						// "surface all flags nomipmaps"
+						if ( !Q_stricmp( argument, "nomipmaps" ) ) {
+							surface->nomipmaps = qtrue;
+						} else {
+							CG_Printf("WARNING: Unknown surface flag '%s' in '%s'\n", argument, filename );
+							break;
+						}
+					} else {
+						CG_Printf("WARNING: Unknown surface keyword '%s' in '%s'\n", command, filename );
+						break;
+					}
+
+					// only a single surface
+					if ( !allSurfaces ) {
+						break;
+					}
+				}
+
 				continue;
 			}
 		}
@@ -494,7 +543,7 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 			if ( !Q_stricmp( token, "origin" ) ) {
 				for ( i = 0; i < 3; i++ ) {
 					token = COM_Parse( &text_p );
-					offset[i] = atof( token );
+					modelInfo->offset[i] = atof( token );
 				}
 				continue;
 
@@ -502,13 +551,13 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 			// path <dirname>
 			else if ( !Q_stricmp( token, "path" ) ) {
 				token = COM_Parse( &text_p );
-				Q_strncpyz( path, token, sizeof ( path ) );
+				Q_strncpyz( modelInfo->path, token, sizeof ( modelInfo->path ) );
 				continue;
 			}
 			// scale <float>
 			else if ( !Q_stricmp( token, "scale" ) ) {
 				token = COM_Parse( &text_p );
-				*scale = atof( token );
+				modelInfo->scale = atof( token );
 				continue;
 			}
 			// UNIMPLIMENTED: lod_scale <float>
@@ -521,21 +570,22 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 				token = COM_Parse( &text_p );
 				continue;
 			}
-			// UNIMPLIMENTED: radius <float>
+			// radius <float>
 			else if ( !Q_stricmp( token, "radius" ) ) {
 				token = COM_Parse( &text_p );
+				modelInfo->radius = atof( token );
 				continue;
 			}
 			// skelmodel <filename>
-			// Example: path models/example ; skelmodel example.skb
 			else if ( !Q_stricmp( token, "skelmodel" ) ) {
 				token = COM_Parse( &text_p );
 
-				Com_sprintf( skelmodel, sizeof ( skelmodel ), "%s/%s", path, token );
+				// ZTM: This should probably be defered until done parsing because path might not be set yet?
+				Com_sprintf( skelmodel, sizeof ( skelmodel ), "%s/%s", modelInfo->path, token );
 				*hModel = trap_R_RegisterModel( skelmodel );
 
-				// ZTM: Currently the engine doesn't support skb models so this will always fail.
 #if 0
+				// ZTM: Currently the engine doesn't support skb models so this will always fail.
 				if ( !*hModel ) {
 					CG_Printf("WARNING: Failed to load skelmodel '%s' in '%s'\n", skelmodel, filename );
 				}
@@ -549,7 +599,7 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 		}
 
 		// animations
-		// they are optionally followed by a braced section with client and server sections.
+		// TODO: they are optionally followed by a braced section with client and server sections.
 		// if there is a skelmodel than these are actually animations (.ska) files otherwise they're vertex models (.tan) files.
 		if ( section == TIKI_ANIMATIONS ) {
 			Q_strncpyz( animName, token, sizeof ( animName ) );
@@ -557,23 +607,22 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 			if ( !Q_stricmp( token, "idle" ) ) {
 				token = COM_Parse( &text_p );
 
-				Com_sprintf( animFile, sizeof ( animFile ), "%s/%s", path, token );
+				Com_sprintf( animFile, sizeof ( animFile ), "%s/%s", modelInfo->path, token );
 
 				*hModel = trap_R_RegisterModel( animFile );
 				continue;
 			} else {
 				token = COM_Parse( &text_p );
-				Com_sprintf( animFile, sizeof ( animFile ), "%s/%s", path, token );
 
-				// some tiki files use .tan models but do not use idle animation
-				if ( !*hModel && COM_CompareExtension( animFile, ".tan" ) ) {
+				// hack: some tiki files use .tan models but do not use idle animation
+				if ( !*hModel && COM_CompareExtension( token, ".tan" ) ) {
+					Com_sprintf( animFile, sizeof ( animFile ), "%s/%s", modelInfo->path, token );
 					*hModel = trap_R_RegisterModel( animFile );
 				}
 
 				if ( cg_tikiDebug.integer ) {
 					Com_Printf( "WARNING: Unknown tiki animation '%s' (filename '%s') in %s\n", animName, animFile, filename );
 				}
-				SkipRestOfLine( &text_p );
 				continue;
 			}
 		}
@@ -585,19 +634,74 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 		SkipRestOfLine( &text_p );
 	}
 
-	if ( outPath && path[0] ) {
-		Q_strncpyz( outPath, path, MAX_QPATH );
-	}
-
 	return qtrue;
+}
+
+// convert tiki surface info into a skin
+void CG_TikiSkin( const char *filename, const tikiModel_t *modelInfo, cgSkin_t *skin ) {
+	const tikiSurface_t *surface;
+	char shaderName[MAX_QPATH];
+	int i;
+	qhandle_t	hShader;
+
+	skin->numSurfaces = 0;
+
+	for ( i = 0, surface = modelInfo->surfaces; i < modelInfo->numSurfaces; i++, surface++ ) {
+		if ( skin->numSurfaces >= MAX_CG_SKIN_SURFACES ) {
+			Com_Printf( "WARNING: Ignoring surfaces in '%s', the max is %d surfaces!\n", filename, MAX_CG_SKIN_SURFACES );
+			break;
+		}
+
+		if ( surface->nodraw ) {
+			hShader = cgs.media.nodrawShader;
+		} else {
+#if 1
+			// if there is an extension (.tga) it's in the path otherwise it's a shader name
+			if ( modelInfo->path[0] && COM_CompareExtension( surface->shader, ".tga" ) ) {
+				Com_sprintf( shaderName, sizeof ( shaderName ), "%s/%s", modelInfo->path, surface->shader );
+			} else {
+				Q_strncpyz( shaderName, surface->shader, sizeof ( shaderName ) );
+			}
+			hShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, !surface->nomipmaps );
+			//Com_Printf( "DEBUG: Tiki shader '%s' (handle %d) for surface '%s' in '%s'\n", shaderName, hShader, surface->name, filename );
+#else
+			// TODO: is there a way to get rid of the (currently needed) fallback case?
+			//       can I just check if there is a '/' or '\\' to use without adding path?
+			Q_strncpyz( shaderName, surface->shader, sizeof ( shaderName ) );
+			hShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, !surface->nomipmaps );
+			//Com_Printf( "DEBUG: Tiki shader '%s' (handle %d) for surface '%s' in '%s'\n", shaderName, hShader, surface->name, filename );
+
+			if ( !hShader && modelInfo->path[0] ) {
+				Com_sprintf( shaderName, sizeof ( shaderName ), "%s/%s", modelInfo->path, surface->shader );
+				hShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, !surface->nomipmaps );
+				//Com_Printf( "DEBUG: Tiki shader '%s' (handle %d) for surface '%s' in '%s'\n", shaderName, hShader, surface->name, filename );
+			}
+#endif
+
+			// fallback to models
+			//   ammo_gasplant.tik has path "models/ammo/gasplant" with shader "monster/gasyerass2/gasyerass2.tga"
+			//   but shader path requires "models/" at the beginning
+			if ( !hShader ) {
+				Com_sprintf( shaderName, sizeof ( shaderName ), "models/%s", surface->shader );
+				hShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, !surface->nomipmaps );
+				//Com_Printf( "DEBUG: Tiki shader '%s' (handle %d) for surface '%s' in '%s'\n", shaderName, hShader, surface->name, filename );
+			}
+
+			if ( !hShader ) {
+				CG_Printf("WARNING: Failed to load shader '%s' for surface '%s' in '%s'\n", shaderName, surface->name, filename );
+			}
+		}
+
+		skin->surfaces[skin->numSurfaces] = trap_R_AllocSkinSurface( surface->name, hShader );
+		skin->numSurfaces++;
+	}
 }
 
 // spawn 'idle' model specified by tiki file
 // ZTM: TODO?: store info parsed from file instead of re-parsing it each time.
 void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, vec3_t angles ) {
-	float tikiScale;
+	tikiModel_t modelInfo;
 	vec3_t vScale;
-	vec3_t offset;
 	cg_gamemodel_t *gamemodel;
 	int i;
 	qhandle_t hModel;
@@ -610,21 +714,43 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 		CG_Error( "^1MAX_STATIC_GAMEMODELS(%i) hit", MAX_STATIC_GAMEMODELS );
 	}
 
-	VectorSet( offset, 0, 0, 0 );
-
 	gamemodel = &cgs.miscGameModels[cg.numMiscGameModels];
 
 	hModel = 0;
 
-	if ( !CG_LoadTiki( tikiFile, &gamemodel->skin, &hModel, offset, &tikiScale, NULL ) ) {
+	if ( !CG_LoadTiki( tikiFile, &modelInfo, &hModel ) ) {
 		return;
 	}
 	cg.numMiscGameModels++;
 
-	VectorAdd( origin, offset, gamemodel->org );
+	CG_TikiSkin( tikiFile, &modelInfo, &gamemodel->skin );
+
+	// special handling for using a shader on "all" surfaces
+	// used by models/lympthorn_f.tik on map gruff
+	if ( modelInfo.allShader[0] ) {
+		if ( gamemodel->skin.numSurfaces ) {
+			// FIXME: The all shader would only be used on surfaces set in the skin,
+			//        which presumably already have the shader name set.
+			Com_Printf( "WARNING: Mix of explicit and implicit (\"all\") shader names in %s\n", tikiFile );
+		} else {
+			char shaderName[MAX_QPATH];
+
+			// if there is an extension (.tga) it's in the path otherwise it's a shader name
+			if ( modelInfo.path[0] && COM_CompareExtension( modelInfo.allShader, ".tga" ) ) {
+				Com_sprintf( shaderName, sizeof ( shaderName ), "%s/%s", modelInfo.path, modelInfo.allShader );
+			} else {
+				Q_strncpyz( shaderName, modelInfo.allShader, sizeof ( shaderName ) );
+			}
+
+			// FIXME: there can be a nomipmaps flag set
+			gamemodel->customShader = trap_R_RegisterShaderEx( shaderName, LIGHTMAP_NONE, qtrue );
+		}
+	}
+
+	VectorAdd( origin, modelInfo.offset, gamemodel->org );
 
 	// multiply entity scale by scale from tiki file
-	scale *= tikiScale;
+	scale *= modelInfo.scale;
 	VectorSet( vScale, scale, scale, scale );
 
 	if ( !hModel ) {
@@ -651,7 +777,9 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 
 		gamemodel->radius = RadiusFromBounds( mins, maxs );
 	} else {
-		gamemodel->radius = 0;
+		// using radius causes cull issues
+		// also, I don't know if tiki radius is suppose to be used for culling
+		gamemodel->radius = 0;//modelInfo.radius;
 	}
 
 }
