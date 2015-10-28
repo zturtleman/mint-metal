@@ -58,10 +58,6 @@ Suite 120, Rockville, Maryland 20850 USA.
 #define	GIANTCHAR_WIDTH		32
 #define	GIANTCHAR_HEIGHT	cgs.media.bigFontHeight //48
 
-#ifdef MISSIONPACK
-#define CG_FONT_THRESHOLD 0.1
-#endif
-
 #define	POWERUP_BLINKS		5
 
 #define	POWERUP_BLINK_TIME	1000
@@ -100,10 +96,6 @@ Suite 120, Rockville, Maryland 20850 USA.
 
 #define	TEAMCHAT_WIDTH		80
 #define TEAMCHAT_HEIGHT		8
-
-// very large characters
-#define	GIANT_WIDTH			32
-#define	GIANT_HEIGHT		48
 
 #define	NUM_CROSSHAIRS		10
 
@@ -857,6 +849,7 @@ typedef struct {
 	fontInfo_t	smallFont;
 	fontInfo_t	textFont;
 	fontInfo_t	bigFont;
+	fontInfo_t	numberFont; // status bar giant number font
 
 	int			smallFontHeight;
 	int			bigFontHeight;
@@ -954,8 +947,6 @@ typedef struct {
 	qhandle_t	nailPuffShader;
 	qhandle_t	blueProxMine;
 #endif
-
-	qhandle_t	numberShaders[11];
 
 	qhandle_t	shadowMarkShader;
 
@@ -1366,6 +1357,9 @@ extern	vmCvar_t		cg_simpleItems;
 extern	vmCvar_t		cg_fov;
 extern	vmCvar_t		cg_zoomFov;
 extern	vmCvar_t		cg_splitviewVertical;
+extern	vmCvar_t		cg_splitviewThirdEqual;
+extern	vmCvar_t		cg_splitviewTextScale;
+extern	vmCvar_t		cg_hudTextScale;
 extern	vmCvar_t		cg_lagometer;
 extern	vmCvar_t		cg_drawAttacker;
 extern	vmCvar_t		cg_synchronousClients;
@@ -1423,6 +1417,7 @@ extern	vmCvar_t		cg_drawScores;
 extern	vmCvar_t		cg_oldBubbles;
 extern	vmCvar_t		cg_smoothBodySink;
 extern	vmCvar_t		cg_antiLag;
+extern	vmCvar_t		cg_forceBitmapFonts;
 extern	vmCvar_t		ui_stretch;
 #ifdef MISSIONPACK
 extern	vmCvar_t		cg_redTeamName;
@@ -1445,6 +1440,7 @@ extern	vmCvar_t		cg_thirdPerson[MAX_SPLITVIEW];
 extern	vmCvar_t		cg_thirdPersonRange[MAX_SPLITVIEW];
 extern	vmCvar_t		cg_thirdPersonAngle[MAX_SPLITVIEW];
 extern	vmCvar_t		cg_thirdPersonHeight[MAX_SPLITVIEW];
+extern	vmCvar_t		cg_thirdPersonSmooth[MAX_SPLITVIEW];
 
 #ifdef MISSIONPACK
 extern	vmCvar_t		cg_currentSelectedPlayer[MAX_SPLITVIEW];
@@ -1477,7 +1473,7 @@ void CG_UpdateCvars( void );
 int CG_CrosshairPlayer( int localPlayerNum );
 int CG_LastAttacker( int localPlayerNum );
 void CG_LoadMenus(const char *menuFile);
-void CG_DistributeKeyEvent( int key, qboolean down, unsigned time, connstate_t state, int axisNum );
+void CG_DistributeKeyEvent( int key, qboolean down, unsigned time, connstate_t state, int joystickNum, int axisNum );
 void CG_DistributeCharEvent( int key, connstate_t state );
 void CG_KeyEvent(int key, qboolean down);
 void CG_MouseEvent(int localPlayerNum, int x, int y);
@@ -1563,7 +1559,7 @@ void CG_LerpColor( const vec4_t a, const vec4_t b, vec4_t c, float t );
 void CG_DrawString( int x, int y, const char* str, int style, const vec4_t color );
 void CG_DrawStringWithCursor( int x, int y, const char* str, int style, const vec4_t color, int cursorPos, int cursorChar );
 void CG_DrawStringExt( int x, int y, const char* str, int style, const vec4_t color, float scale, int maxChars, float shadowOffset );
-void CG_DrawStringExtWithCursor( int x, int y, const char* str, int style, const vec4_t color, float scale, int maxChars, float shadowOffset, int cursorPos, int cursorChar );
+void CG_DrawStringExtWithCursor( int x, int y, const char* str, int style, const vec4_t color, float scale, int maxChars, float shadowOffset, float gradient, int cursorPos, int cursorChar );
 void CG_DrawBigString( int x, int y, const char *s, float alpha );
 void CG_DrawBigStringColor( int x, int y, const char *s, vec4_t color );
 void CG_DrawSmallString( int x, int y, const char *s, float alpha );
@@ -1571,6 +1567,7 @@ void CG_DrawSmallStringColor( int x, int y, const char *s, vec4_t color );
 
 int CG_DrawStrlenEx( const char *str, int style, int maxchars );
 int CG_DrawStrlen( const char *str, int style );
+int CG_DrawStringLineHeight( int style );
 
 float	*CG_FadeColor( int startMsec, int totalMsec );
 float *CG_TeamColor( int team );
@@ -1641,22 +1638,25 @@ qboolean CG_LoadRitualFont( const char *fontname, fontInfo_t *font );
 // cg_text.c
 //
 void CG_TextInit( void );
+void CG_InitBitmapFont( fontInfo_t *font, int charHeight, int charWidth );
+void CG_InitBitmapNumberFont( fontInfo_t *font );
 qboolean CG_InitTrueTypeFont( const char *name, int pointSize, fontInfo_t *font );
 fontInfo_t *CG_FontForScale( float scale );
 
-void Text_PaintChar(float x, float y, float width, float height, float scale, float s, float t, float s2, float t2, qhandle_t hShader);
-void Text_Paint(float x, float y, const fontInfo_t *font, float scale, const vec4_t color, const char *text, float adjust, int limit, float shadowOffset, qboolean forceColor);
-void Text_PaintWithCursor(float x, float y, const fontInfo_t *font, float scale, const vec4_t color, const char *text, int cursorPos, char cursor, float adjust, int limit, float shadowOffset, qboolean forceColor);
-void Text_Paint_Limit(float *maxX, float x, float y, const fontInfo_t *font, float scale, const vec4_t color, const char* text, float adjust, int limit);
-int Text_Width(const char *text, const fontInfo_t *font, float scale, int limit);
-int Text_Height(const char *text, const fontInfo_t *font, float scale, int limit);
+const glyphInfo_t *Text_GetGlyph( const fontInfo_t *font, unsigned long index );
+int Text_Width( const char *text, const fontInfo_t *font, float scale, int limit );
+int Text_Height( const char *text, const fontInfo_t *font, float scale, int limit );
+void Text_PaintChar( float x, float y, float width, float height, float useScale, float s, float t, float s2, float t2, qhandle_t hShader );
+void Text_PaintGlyph( float x, float y, float useScale, const glyphInfo_t *glyph, float *gradientColor );
+void Text_Paint( float x, float y, const fontInfo_t *font, float scale, const vec4_t color, const char *text, float adjust, int limit, float shadowOffset, float gradient, qboolean forceColor );
+void Text_PaintWithCursor( float x, float y, const fontInfo_t *font, float scale, const vec4_t color, const char *text, int cursorPos, char cursor, float adjust, int limit, float shadowOffset, float gradient, qboolean forceColor );
+void Text_Paint_Limit( float *maxX, float x, float y, const fontInfo_t *font, float scale, const vec4_t color, const char* text, float adjust, int limit );
 
-void CG_Text_PaintChar(float x, float y, float width, float height, float scale, float s, float t, float s2, float t2, qhandle_t hShader);
-void CG_Text_Paint(float x, float y, float scale, const vec4_t color, const char *text, float adjust, int limit, int textStyle);
-void CG_Text_PaintWithCursor(float x, float y, float scale, const vec4_t color, const char *text, int cursorPos, char cursor, int limit, int textStyle);
-void CG_Text_Paint_Limit(float *maxX, float x, float y, float scale, const vec4_t color, const char* text, float adjust, int limit);
-int CG_Text_Width(const char *text, float scale, int limit);
-int CG_Text_Height(const char *text, float scale, int limit);
+void CG_Text_Paint( float x, float y, float scale, const vec4_t color, const char *text, float adjust, int limit, int textStyle );
+void CG_Text_PaintWithCursor( float x, float y, float scale, const vec4_t color, const char *text, int cursorPos, char cursor, int limit, int textStyle );
+void CG_Text_Paint_Limit( float *maxX, float x, float y, float scale, const vec4_t color, const char* text, float adjust, int limit );
+int CG_Text_Width( const char *text, float scale, int limit );
+int CG_Text_Height( const char *text, float scale, int limit );
 
 
 //
@@ -1804,6 +1804,7 @@ void CG_SurfaceRailRings( const refEntity_t *re );
 void CG_SurfaceRailCore( const refEntity_t *re );
 void CG_SurfaceLightningBolt( const refEntity_t *re );
 void CG_SurfaceBeam( const refEntity_t *re );
+void CG_SurfaceText( const refEntity_t *re, const fontInfo_t *font, float scale, const char *text, float adjust, int limit, float gradient, qboolean forceColor );
 
 //
 // cg_spawn.c
