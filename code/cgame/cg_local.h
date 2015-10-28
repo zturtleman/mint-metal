@@ -1429,6 +1429,8 @@ extern  vmCvar_t		cg_recordSPDemoName;
 extern	vmCvar_t		cg_obeliskRespawnDelay;
 #endif
 
+extern	vmCvar_t		cg_tikiDebug;
+
 extern	vmCvar_t		cg_color1[MAX_SPLITVIEW];
 extern	vmCvar_t		cg_color2[MAX_SPLITVIEW];
 extern	vmCvar_t		cg_handicap[MAX_SPLITVIEW];

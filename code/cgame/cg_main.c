@@ -281,6 +281,8 @@ vmCvar_t	cg_recordSPDemoName;
 vmCvar_t	cg_obeliskRespawnDelay;
 #endif
 
+vmCvar_t	cg_tikiDebug;
+
 vmCvar_t	cg_color1[MAX_SPLITVIEW];
 vmCvar_t	cg_color2[MAX_SPLITVIEW];
 vmCvar_t	cg_handicap[MAX_SPLITVIEW];
@@ -470,6 +472,8 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_introPlayed, "com_introPlayed", "0", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_joystickDebug, "in_joystickDebug", "0", CVAR_TEMP, RANGE_BOOL },
 	{ &ui_stretch, "ui_stretch", "0", CVAR_ARCHIVE, RANGE_BOOL },
+
+	{ &cg_tikiDebug, "cg_tikiDebug", "0", CVAR_TEMP, RANGE_BOOL },
 };
 
 static userCvarTable_t userCvarTable[] = {

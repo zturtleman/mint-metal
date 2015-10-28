@@ -229,16 +229,19 @@ void SP_script_object( void ) {
 // Load the TIKI file used by sky_edneskynoground (and other basic objects)
 // TODO: Should create a new bg_*.c file for tiki file loading
 // TODO?: support loading binary ".cik" files. It's probably the dtiki* structs in FAKK's qfiles.h.
-qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, vec3_t offset, float *scale ) {
+char tikiText[120000]; // julie_base.tik is really long
+qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, vec3_t offset, float *scale, char *outPath ) {
 	char		*text_p;
 	int			len;
 	int			i;
 	char		*token;
-	char		text[20000];
+	
 	fileHandle_t	f;
-	int			braceLevel;
 	char		path[MAX_QPATH];
-	char		anim[MAX_QPATH];
+	char		skelmodel[MAX_QPATH];
+	char		animName[MAX_QPATH];
+	char		animFile[MAX_QPATH];
+	char		surfName[MAX_QPATH];
 	enum {
 		TIKI_NONE,
 		TIKI_SERVER,
@@ -254,41 +257,51 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 	};
 	int section;
 
+	struct {
+		//int section;
+		int braceLevel; // unnamed brace levels
+	} parseStack[32];
+	int stackLevel;
+
 	// load the file
 	len = trap_FS_FOpenFile( filename, &f, FS_READ );
 	if ( len <= 0 ) {
 		return qfalse;
 	}
-	if ( len >= sizeof( text ) - 1 ) {
+	if ( len >= sizeof( tikiText ) - 1 ) {
 		CG_Printf( "File %s too long\n", filename );
 		trap_FS_FCloseFile( f );
 		return qfalse;
 	}
-	trap_FS_Read( text, len, f );
-	text[len] = 0;
+	trap_FS_Read( tikiText, len, f );
+	tikiText[len] = 0;
 	trap_FS_FCloseFile( f );
 
 	// parse the text
-	text_p = text;
+	text_p = tikiText;
+
+	Com_Memset( &parseStack, 0, sizeof ( parseStack ) );
+	stackLevel = 0;
 
 	section = TIKI_NONE;
-	braceLevel = 0;
 	path[0] = 0;
-	anim[0] = 0;
-
-	// check header
-	token = COM_Parse( &text_p );
-
-	if ( Q_stricmp( token, "TIKI" ) ) {
-		CG_Printf("WARNING: %s is not a tiki file\n", filename );
-		return qfalse;
-	}
+	skelmodel[0] = 0;
+	animName[0] = 0;
+	animFile[0] = 0;
+	surfName[0] = 0;
 
 	// read optional parameters
 	while ( 1 ) {
 		token = COM_Parse( &text_p );
 		if ( !*token ) {
 			break;
+		}
+
+		// usually the file starts with this as an identifier
+		// but models/item_bighealthfruit1.tik does not and some
+		// included files do not either
+		if ( !Q_stricmp( token, "TIKI" ) ) {
+			continue;
 		}
 
 		//
@@ -300,6 +313,7 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 				CG_Printf("WARNING: Missing '{' for setup in '%s'\n", filename );
 				return qfalse;
 			}
+			stackLevel++;
 			section = TIKI_SETUP;
 			continue;
 		}
@@ -309,6 +323,7 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 				CG_Printf("WARNING: Missing '{' for init in '%s'\n", filename );
 				return qfalse;
 			}
+			stackLevel++;
 			section = TIKI_INIT;
 			continue;
 		}
@@ -318,6 +333,7 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 				CG_Printf("WARNING: Missing '{' for animations in '%s'\n", filename );
 				return qfalse;
 			}
+			stackLevel++;
 			section = TIKI_ANIMATIONS;
 			continue;
 		}
@@ -327,14 +343,18 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 				CG_Printf("WARNING: Missing '{' for server in '%s'\n", filename );
 				return qfalse;
 			}
-			if ( section == TIKI_NONE )
+			if ( section == TIKI_NONE ) {
+				stackLevel++;
 				section = TIKI_SERVER;
-			else if ( section == TIKI_INIT )
+			} else if ( section == TIKI_INIT ) {
+				stackLevel++;
 				section = TIKI_INIT_SERVER;
-			else if ( section == TIKI_ANIMATIONS )
+			} else if ( section == TIKI_ANIMATIONS ) {
+				stackLevel++;
 				section = TIKI_ANIMATIONS_SERVER;
-			else
-				CG_Printf("DEBUG: Found 'server' in unsupported section (internal #%d)\n", section );
+			} else {
+				CG_Printf("DEBUG: Found 'server' in unsupported section (internal #%d) in '%s'\n", section, filename );
+			}
 			continue;
 		}
 		if ( !Q_stricmp( token, "client" ) ) {
@@ -343,34 +363,41 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 				CG_Printf("WARNING: Missing '{' for client in '%s'\n", filename );
 				return qfalse;
 			}
-			if ( section == TIKI_NONE )
+			if ( section == TIKI_NONE ) {
+				stackLevel++;
 				section = TIKI_CLIENT;
-			else if ( section == TIKI_INIT )
+			} else if ( section == TIKI_INIT ) {
+				stackLevel++;
 				section = TIKI_INIT_CLIENT;
-			else if ( section == TIKI_ANIMATIONS )
+			} else if ( section == TIKI_ANIMATIONS ) {
+				stackLevel++;
 				section = TIKI_ANIMATIONS_CLIENT;
-			else
-				CG_Printf("DEBUG: Found 'client' in unsupported section (internal #%d)\n", section );
+			} else {
+				CG_Printf("DEBUG: Found 'client' in unsupported section (internal #%d) in '%s'\n", section, filename );
+			}
 			continue;
 		}
 		// unnamed { } section
 		if ( !Q_stricmp( token, "{" ) ) {
-			braceLevel++;
+			parseStack[stackLevel].braceLevel++;
 			continue;
 		}
 		if ( !Q_stricmp( token, "}" ) ) {
-			if ( braceLevel ) {
-				braceLevel--;
+			if ( parseStack[stackLevel].braceLevel ) {
+				parseStack[stackLevel].braceLevel--;
 				continue;
 			}
 
 			if ( section == TIKI_NONE ) {
 				CG_Printf("WARNING: Unexpected '}' in '%s'\n", filename );
 			} else if ( section == TIKI_INIT_SERVER || section == TIKI_INIT_CLIENT ) {
+				stackLevel--;
 				section = TIKI_INIT;
 			} else if ( section == TIKI_ANIMATIONS_SERVER || section == TIKI_ANIMATIONS_CLIENT ) {
+				stackLevel--;
 				section = TIKI_ANIMATIONS;
 			} else {
+				stackLevel--;
 				section = TIKI_NONE;
 			}
 			continue;
@@ -379,6 +406,28 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 		//
 		// keyword handling
 		//
+		if ( section == TIKI_NONE ) {
+			// $include <filename>
+			// ZTM: This isn't fully supported, more state should be kept than the few vars passed to CG_LoadTiki
+			if ( !Q_stricmp( token, "$include" ) ) {
+				char include[MAX_QPATH];
+
+				token = COM_Parse( &text_p );
+				Q_strncpyz( include, token, sizeof ( include ) );
+
+				if ( !CG_LoadTiki( include, skin, hModel, offset, scale, path ) ) {
+					CG_Printf("WARNING: Failed to load '%s' included in '%s'\n", include, filename );
+				}
+				continue;
+			}
+			// UNIMPLIMENTED: $define <name> <value>
+			else if ( !Q_stricmp( token, "$define" ) ) {
+				token = COM_Parse( &text_p );
+				token = COM_Parse( &text_p );
+				continue;
+			}
+		}
+
 		// setup and init-server
 		if ( section == TIKI_SETUP || section == TIKI_INIT_SERVER ) {
 			if ( !Q_stricmp( token, "surface" ) ) {
@@ -387,12 +436,15 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 
 				// surface name
 				token = COM_Parse( &text_p );
-				Q_strncpyz( anim, token, sizeof ( anim ) );
+				Q_strncpyz( surfName, token, sizeof ( surfName ) );
 
 				// command
 				token = COM_Parse( &text_p );
 				if ( !Q_stricmp( token, "+nodraw" ) ) {
 					hShader = cgs.media.nodrawShader;
+				} else if ( !Q_stricmp( token, "-nodraw" ) ) {
+					// NOTE: There can be a included tiki file that sets no draw and then this file wants to enable it.
+					//       Will need to rework how skins are handled.
 				} else if ( !Q_stricmp( token, "shader" ) ) {
 					token = COM_Parse( &text_p );
 
@@ -406,7 +458,7 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 					}
 
 					if ( !hShader ) {
-						CG_Printf("WARNING: Failed to load shader '%s' for surface '%s' in '%s'\n", shaderName, anim, filename );
+						CG_Printf("WARNING: Failed to load shader '%s' for surface '%s' in '%s'\n", shaderName, surfName, filename );
 					}
 				} else if ( !Q_stricmp( token, "flags" ) ) {
 					token = COM_Parse( &text_p );
@@ -430,7 +482,7 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 					break;
 				}
 
-				skin->surfaces[skin->numSurfaces] = trap_R_AllocSkinSurface( anim, hShader );
+				skin->surfaces[skin->numSurfaces] = trap_R_AllocSkinSurface( surfName, hShader );
 				skin->numSurfaces++;
 				continue;
 			}
@@ -438,19 +490,56 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 
 		// setup
 		if ( section == TIKI_SETUP ) {
+			// origin <float> <float> <float>
 			if ( !Q_stricmp( token, "origin" ) ) {
 				for ( i = 0; i < 3; i++ ) {
 					token = COM_Parse( &text_p );
 					offset[i] = atof( token );
 				}
 				continue;
-			} else if ( !Q_stricmp( token, "scale" ) ) {
+
+			}
+			// path <dirname>
+			else if ( !Q_stricmp( token, "path" ) ) {
+				token = COM_Parse( &text_p );
+				Q_strncpyz( path, token, sizeof ( path ) );
+				continue;
+			}
+			// scale <float>
+			else if ( !Q_stricmp( token, "scale" ) ) {
 				token = COM_Parse( &text_p );
 				*scale = atof( token );
 				continue;
-			} else if ( !Q_stricmp( token, "path" ) ) {
+			}
+			// UNIMPLIMENTED: lod_scale <float>
+			else if ( !Q_stricmp( token, "lod_scale" ) ) {
 				token = COM_Parse( &text_p );
-				Q_strncpyz( path, token, sizeof ( path ) );
+				continue;
+			}
+			// UNIMPLIMENTED: lod_bias <float>
+			else if ( !Q_stricmp( token, "lod_bias" ) ) {
+				token = COM_Parse( &text_p );
+				continue;
+			}
+			// UNIMPLIMENTED: radius <float>
+			else if ( !Q_stricmp( token, "radius" ) ) {
+				token = COM_Parse( &text_p );
+				continue;
+			}
+			// skelmodel <filename>
+			// Example: path models/example ; skelmodel example.skb
+			else if ( !Q_stricmp( token, "skelmodel" ) ) {
+				token = COM_Parse( &text_p );
+
+				Com_sprintf( skelmodel, sizeof ( skelmodel ), "%s/%s", path, token );
+				*hModel = trap_R_RegisterModel( skelmodel );
+
+				// ZTM: Currently the engine doesn't support skb models so this will always fail.
+#if 0
+				if ( !*hModel ) {
+					CG_Printf("WARNING: Failed to load skelmodel '%s' in '%s'\n", skelmodel, filename );
+				}
+#endif
 				continue;
 			} else {
 				Com_Printf( "WARNING: Unknown setup keyword '%s' in %s\n", token, filename );
@@ -460,23 +549,44 @@ qboolean CG_LoadTiki( const char *filename, cgSkin_t *skin, qhandle_t *hModel, v
 		}
 
 		// animations
+		// they are optionally followed by a braced section with client and server sections.
+		// if there is a skelmodel than these are actually animations (.ska) files otherwise they're vertex models (.tan) files.
 		if ( section == TIKI_ANIMATIONS ) {
+			Q_strncpyz( animName, token, sizeof ( animName ) );
+
 			if ( !Q_stricmp( token, "idle" ) ) {
 				token = COM_Parse( &text_p );
 
-				Com_sprintf( anim, sizeof ( anim ), "%s/%s", path, token );
+				Com_sprintf( animFile, sizeof ( animFile ), "%s/%s", path, token );
 
-				*hModel = trap_R_RegisterModel( anim );
+				*hModel = trap_R_RegisterModel( animFile );
 				continue;
 			} else {
-				Com_Printf( "WARNING: Unknown tiki animation '%s' in %s\n", token, filename );
+				token = COM_Parse( &text_p );
+				Com_sprintf( animFile, sizeof ( animFile ), "%s/%s", path, token );
+
+				// some tiki files use .tan models but do not use idle animation
+				if ( !*hModel && COM_CompareExtension( animFile, ".tan" ) ) {
+					*hModel = trap_R_RegisterModel( animFile );
+				}
+
+				if ( cg_tikiDebug.integer ) {
+					Com_Printf( "WARNING: Unknown tiki animation '%s' (filename '%s') in %s\n", animName, animFile, filename );
+				}
 				SkipRestOfLine( &text_p );
 				continue;
 			}
 		}
 
-		Com_Printf( "WARNING: Unknown tiki keyword '%s' in %s\n", token, filename );
+		// this currently causes tons of spam
+		if ( cg_tikiDebug.integer ) {
+			Com_Printf( "WARNING: Unknown tiki keyword '%s' in %s\n", token, filename );
+		}
 		SkipRestOfLine( &text_p );
+	}
+
+	if ( outPath && path[0] ) {
+		Q_strncpyz( outPath, path, MAX_QPATH );
 	}
 
 	return qtrue;
@@ -492,7 +602,9 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 	int i;
 	qhandle_t hModel;
 
-	CG_Printf("DEBUG: Adding tiki model '%s' at %s, yaw %f\n", tikiFile, vtos( origin ), angles[YAW] );
+	if ( cg_tikiDebug.integer ) {
+		CG_Printf("DEBUG: Adding tiki model '%s' at %s, yaw %f\n", tikiFile, vtos( origin ), angles[YAW] );
+	}
 
 	if ( cg.numMiscGameModels >= MAX_STATIC_GAMEMODELS ) {
 		CG_Error( "^1MAX_STATIC_GAMEMODELS(%i) hit", MAX_STATIC_GAMEMODELS );
@@ -504,7 +616,7 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 
 	hModel = 0;
 
-	if ( !CG_LoadTiki( tikiFile, &gamemodel->skin, &hModel, offset, &tikiScale ) ) {
+	if ( !CG_LoadTiki( tikiFile, &gamemodel->skin, &hModel, offset, &tikiScale, NULL ) ) {
 		return;
 	}
 	cg.numMiscGameModels++;
@@ -577,7 +689,9 @@ void SP_generic_tiki_model( void ) {
 		//CG_Printf("DEBUG: Entity '%s': ignoring static tiki model '%s',\n", classname, filename );
 		return;
 	} else {
-		CG_Printf("DEBUG: Entity '%s': spawning tiki model '%s'\n", classname, filename );
+		if ( cg_tikiDebug.integer ) {
+			CG_Printf("DEBUG: Entity '%s': spawning tiki model '%s'\n", classname, filename );
+		}
 	}
 
 	CG_AddStaticTikiModel( filename, origin, scale, angles );
