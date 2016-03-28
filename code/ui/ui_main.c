@@ -133,6 +133,10 @@ qboolean UI_WantsBindKeys( void ) {
 	return Display_WantsBindKeys();
 }
 
+void UI_WindowResized( void ) {
+
+}
+
 void AssetCache( void ) {
 	int n;
 	//if (Assets.textFont == NULL) {
@@ -4125,7 +4129,7 @@ static qboolean Team_Parse(char **p) {
       return qtrue;
     }
 
-    if ( !token || token[0] == 0 ) {
+    if ( !token[0] ) {
       return qfalse;
     }
 
@@ -4186,7 +4190,7 @@ static qboolean Character_Parse(char **p) {
       return qtrue;
     }
 
-    if ( !token || token[0] == 0 ) {
+    if ( !token[0] ) {
       return qfalse;
     }
 
@@ -4242,7 +4246,7 @@ static qboolean Alias_Parse(char **p) {
       return qtrue;
     }
 
-    if ( !token || token[0] == 0 ) {
+    if ( !token[0] ) {
       return qfalse;
     }
 
@@ -4291,7 +4295,7 @@ static void UI_ParseTeamInfo(const char *teamFile) {
 
 	while ( 1 ) {
 		token = COM_ParseExt( &p, qtrue );
-		if( !token || token[0] == 0 || token[0] == '}') {
+		if( !token[0] || token[0] == '}') {
 			break;
 		}
 
@@ -4343,7 +4347,7 @@ static qboolean GameType_Parse(char **p, qboolean join) {
 			return qtrue;
 		}
 
-		if ( !token || token[0] == 0 ) {
+		if ( !token[0] ) {
 			return qfalse;
 		}
 
@@ -4400,7 +4404,7 @@ static qboolean MapList_Parse(char **p) {
 			return qtrue;
 		}
 
-		if ( !token || token[0] == 0 ) {
+		if ( !token[0] ) {
 			return qfalse;
 		}
 
@@ -4461,7 +4465,7 @@ static void UI_ParseGameInfo(const char *teamFile) {
 
 	while ( 1 ) {
 		token = COM_ParseExt( &p, qtrue );
-		if( !token || token[0] == 0 || token[0] == '}') {
+		if( !token[0] || token[0] == '}') {
 			break;
 		}
 
