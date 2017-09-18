@@ -121,7 +121,7 @@ static cvarTable_t		gameCvarTable[] = {
 
 	// noset vars
 	{ NULL, "gameversion", GAME_VERSION , CVAR_SERVERINFO | CVAR_ROM, 0, RANGE_ALL },
-	{ NULL, "gamedate", __DATE__ , CVAR_ROM, 0, RANGE_ALL },
+	{ NULL, "gamedate", PRODUCT_DATE , CVAR_ROM, 0, RANGE_ALL },
 	{ &g_restarted, "g_restarted", "0", CVAR_ROM, 0, RANGE_ALL },
 
 	// latched vars
@@ -326,7 +326,7 @@ void G_FindTeams( void ) {
 
 	c = 0;
 	c2 = 0;
-	for ( i=MAX_CLIENTS, e=g_entities+i ; i < level.num_entities ; i++, e++ ) {
+	for ( i=MAX_CLIENTS, e=g_entities+i ; i < level.num_entities ; i++,e++ ) {
 		if (!e->inuse)
 			continue;
 		if (!e->team)
@@ -469,7 +469,7 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	G_DPrintf ("------- Game Initialization -------\n");
 	G_DPrintf ("gameversion: %s\n", GAME_VERSION);
-	G_DPrintf ("gamedate: %s\n", __DATE__);
+	G_DPrintf ("gamedate: %s\n", PRODUCT_DATE);
 
 	srand( randomSeed );
 

@@ -110,6 +110,10 @@ Q_EXPORT intptr_t vmMain( int command, int arg0, int arg1, int arg2, int arg3, i
 		return 0;
 	case CG_SET_ACTIVE_MENU:
 		UI_SetActiveMenu( arg0 );
+		// stop cinematic when disconnect or start demo playback
+		if ( arg0 == UIMENU_NONE && cg.cinematicPlaying ) {
+			CG_StopCinematic_f();
+		}
 		return 0;
 	case CG_JOYSTICK_AXIS_EVENT:
 		CG_JoystickAxisEvent(arg0, arg1, arg2, arg3, arg4);
@@ -200,6 +204,7 @@ vmCvar_t	cg_ignore;
 vmCvar_t	cg_simpleItems;
 vmCvar_t	cg_fov;
 vmCvar_t	cg_zoomFov;
+vmCvar_t	cg_weaponFov;
 vmCvar_t	cg_splitviewVertical;
 vmCvar_t	cg_splitviewThirdEqual;
 vmCvar_t	cg_splitviewTextScale;
@@ -208,8 +213,10 @@ vmCvar_t	cg_drawLagometer;
 vmCvar_t	cg_drawAttacker;
 vmCvar_t	cg_synchronousClients;
 vmCvar_t	cg_singlePlayer;
+#ifndef MISSIONPACK_HUD
 vmCvar_t 	cg_teamChatTime;
 vmCvar_t 	cg_teamChatHeight;
+#endif
 vmCvar_t 	cg_stats;
 vmCvar_t 	cg_buildScript;
 vmCvar_t 	cg_forceModel;
@@ -234,14 +241,16 @@ vmCvar_t	pmove_fixed;
 vmCvar_t	pmove_msec;
 vmCvar_t	cg_pmove_msec;
 vmCvar_t	cg_cameraMode;
-vmCvar_t	cg_cameraOrbit;
-vmCvar_t	cg_cameraOrbitDelay;
 vmCvar_t	cg_timescaleFadeEnd;
 vmCvar_t	cg_timescaleFadeSpeed;
 vmCvar_t	cg_timescale;
+#ifdef MISSIONPACK_HUD
 vmCvar_t	cg_smallFont;
 vmCvar_t	cg_bigFont;
+#endif
+#ifdef MISSIONPACK
 vmCvar_t	cg_noTaunt;
+#endif
 vmCvar_t	cg_noProjectileTrail;
 vmCvar_t	cg_oldRail;
 vmCvar_t	cg_oldRocket;
@@ -261,13 +270,21 @@ vmCvar_t	cg_coronas;
 vmCvar_t	cg_fovAspectAdjust;
 vmCvar_t	cg_fadeExplosions;
 vmCvar_t	cg_skybox;
+#ifndef MISSIONPACK_HUD
 vmCvar_t	cg_drawScores;
+#endif
+vmCvar_t	cg_drawPickupItems;
 vmCvar_t	cg_oldBubbles;
 vmCvar_t	cg_smoothBodySink;
 vmCvar_t	cg_antiLag;
 vmCvar_t	cg_forceBitmapFonts;
 vmCvar_t	cg_drawGrappleHook;
 vmCvar_t	cg_drawBBox;
+vmCvar_t	cg_consoleFont;
+vmCvar_t	cg_hudFont;
+vmCvar_t	cg_hudFontBorder;
+vmCvar_t	cg_numberFont;
+vmCvar_t	cg_numberFontBorder;
 
 vmCvar_t	cg_introPlayed;
 vmCvar_t	cg_joystickDebug;
@@ -283,6 +300,18 @@ vmCvar_t	cg_recordSPDemoName;
 vmCvar_t	cg_obeliskRespawnDelay;
 #endif
 
+vmCvar_t	cg_defaultModelGender;
+vmCvar_t	cg_defaultMaleModel;
+vmCvar_t	cg_defaultMaleHeadModel;
+vmCvar_t	cg_defaultFemaleModel;
+vmCvar_t	cg_defaultFemaleHeadModel;
+
+vmCvar_t	cg_defaultTeamModelGender;
+vmCvar_t	cg_defaultMaleTeamModel;
+vmCvar_t	cg_defaultMaleTeamHeadModel;
+vmCvar_t	cg_defaultFemaleTeamModel;
+vmCvar_t	cg_defaultFemaleTeamHeadModel;
+
 vmCvar_t	cg_tikiDebug;
 
 vmCvar_t	cg_color1[MAX_SPLITVIEW];
@@ -291,6 +320,7 @@ vmCvar_t	cg_handicap[MAX_SPLITVIEW];
 vmCvar_t	cg_teamtask[MAX_SPLITVIEW];
 vmCvar_t	cg_teampref[MAX_SPLITVIEW];
 vmCvar_t	cg_autoswitch[MAX_SPLITVIEW];
+vmCvar_t	cg_cyclePastGauntlet[MAX_SPLITVIEW];
 vmCvar_t	cg_drawGun[MAX_SPLITVIEW];
 vmCvar_t	cg_thirdPerson[MAX_SPLITVIEW];
 vmCvar_t	cg_thirdPersonRange[MAX_SPLITVIEW];
@@ -337,6 +367,7 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_ignore, "cg_ignore", "0", 0, RANGE_ALL },	// used for debugging
 	{ &cg_zoomFov, "cg_zoomfov", "22.5", CVAR_ARCHIVE, RANGE_FLOAT(1, 160) },
 	{ &cg_fov, "cg_fov", "90", CVAR_ARCHIVE, RANGE_FLOAT(1, 160) },
+	{ &cg_weaponFov, "cg_weaponFov", "90", CVAR_ARCHIVE, RANGE_FLOAT( 0, 160 ) },
 	{ &cg_viewsize, "cg_viewsize", "100", CVAR_ARCHIVE, RANGE_INT( 30, 100 ) },
 	{ &cg_shadows, "cg_shadows", "1", CVAR_ARCHIVE, RANGE_ALL  },
 	{ &cg_gibs, "cg_gibs", "1", CVAR_ARCHIVE, RANGE_BOOL },
@@ -388,8 +419,10 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_splitviewThirdEqual, "cg_splitviewThirdEqual", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_splitviewTextScale, "cg_splitviewTextScale", "1", CVAR_ARCHIVE, RANGE_FLOAT( 0.1, 5 ) },
 	{ &cg_hudTextScale, "cg_hudTextScale", "1", CVAR_ARCHIVE, RANGE_FLOAT( 0.1, 5 ) },
+#ifndef MISSIONPACK_HUD
 	{ &cg_teamChatTime, "cg_teamChatTime", "3000", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_teamChatHeight, "cg_teamChatHeight", "0", CVAR_ARCHIVE, RANGE_INT( 0, TEAMCHAT_HEIGHT ) },
+#endif
 	{ &cg_forceModel, "cg_forceModel", "0", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_predictItems, "cg_predictItems", "1", CVAR_ARCHIVE | CVAR_USERINFO_ALL, RANGE_BOOL },
 #ifdef MISSIONPACK
@@ -430,8 +463,6 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_hudFiles, "cg_hudFiles", "ui/hud.txt", CVAR_ARCHIVE, RANGE_ALL },
 #endif
 #endif
-	{ &cg_cameraOrbit, "cg_cameraOrbit", "0", CVAR_CHEAT, RANGE_ALL },
-	{ &cg_cameraOrbitDelay, "cg_cameraOrbitDelay", "50", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_timescaleFadeEnd, "cg_timescaleFadeEnd", "1", 0, RANGE_ALL },
 	{ &cg_timescaleFadeSpeed, "cg_timescaleFadeSpeed", "0", 0, RANGE_ALL },
 	{ &cg_timescale, "timescale", "1", 0, RANGE_ALL },
@@ -441,11 +472,16 @@ static cvarTable_t cgameCvarTable[] = {
 
 	{ &pmove_overbounce, "pmove_overbounce", "0", CVAR_SYSTEMINFO, RANGE_BOOL },
 	{ &pmove_fixed, "pmove_fixed", "0", CVAR_SYSTEMINFO, RANGE_BOOL },
+//	{ &cg_pmove_fixed, "cg_pmove_fixed", "0", CVAR_USERINFO | CVAR_ARCHIVE, RANGE_BOOL },
 	{ &pmove_msec, "pmove_msec", "8", CVAR_SYSTEMINFO, RANGE_ALL },
-	{ &cg_noTaunt, "cg_noTaunt", "0", CVAR_ARCHIVE, RANGE_BOOL },
-	{ &cg_noProjectileTrail, "cg_noProjectileTrail", "0", CVAR_ARCHIVE, RANGE_BOOL },
+#ifdef MISSIONPACK_HUD
 	{ &cg_smallFont, "ui_smallFont", "0.25", CVAR_ARCHIVE, RANGE_ALL },
 	{ &cg_bigFont, "ui_bigFont", "0.4", CVAR_ARCHIVE, RANGE_ALL },
+#endif
+#ifdef MISSIONPACK
+	{ &cg_noTaunt, "cg_noTaunt", "0", CVAR_ARCHIVE, RANGE_BOOL },
+#endif
+	{ &cg_noProjectileTrail, "cg_noProjectileTrail", "0", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_oldRail, "cg_oldRail", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_oldRocket, "cg_oldRocket", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_oldPlasma, "cg_oldPlasma", "1", CVAR_ARCHIVE, RANGE_BOOL },
@@ -464,14 +500,34 @@ static cvarTable_t cgameCvarTable[] = {
 	{ &cg_fovAspectAdjust, "cg_fovAspectAdjust", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_fadeExplosions, "cg_fadeExplosions", "0", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_skybox, "cg_skybox", "1", CVAR_ARCHIVE, RANGE_INT( 0, 2 ) },
-	{ &cg_drawScores, "cg_drawScores", "1", 0, RANGE_BOOL },
+#ifdef MISSIONPACK_HUD
+	{ &cg_drawPickupItems, "cg_drawPickupItems", "0", CVAR_ARCHIVE, RANGE_BOOL },
+#else
+	{ &cg_drawScores, "cg_drawScores", "1", CVAR_ARCHIVE, RANGE_BOOL },
+	{ &cg_drawPickupItems, "cg_drawPickupItems", "1", CVAR_ARCHIVE, RANGE_BOOL },
+#endif
 	{ &cg_oldBubbles, "cg_oldBubbles", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_smoothBodySink, "cg_smoothBodySink", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_antiLag, "cg_antiLag", "0", CVAR_USERINFO_ALL | CVAR_ARCHIVE, RANGE_INT( 0, 2 ) },
 	{ &cg_forceBitmapFonts, "cg_forceBitmapFonts", "0", CVAR_ARCHIVE | CVAR_LATCH, RANGE_BOOL },
 	{ &cg_drawGrappleHook, "cg_drawGrappleHook", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_drawBBox, "cg_drawBBox", "0", CVAR_CHEAT, RANGE_BOOL },
-//	{ &cg_pmove_fixed, "cg_pmove_fixed", "0", CVAR_USERINFO | CVAR_ARCHIVE, RANGE_BOOL }
+	{ &cg_consoleFont, "cg_consoleFont", "fonts/LiberationMono-Regular.ttf", CVAR_ARCHIVE | CVAR_LATCH, RANGE_ALL },
+	{ &cg_hudFont, "cg_hudFont", "fonts/LiberationSans-Bold.ttf", CVAR_ARCHIVE | CVAR_LATCH, RANGE_ALL },
+	{ &cg_hudFontBorder, "cg_hudFontBorder", "2", CVAR_ARCHIVE | CVAR_LATCH, RANGE_FLOAT( 0, 10 ) },
+	{ &cg_numberFont, "cg_numberFont", "", CVAR_ARCHIVE | CVAR_LATCH, RANGE_ALL },
+	{ &cg_numberFontBorder, "cg_numberFontBorder", "0", CVAR_ARCHIVE | CVAR_LATCH, RANGE_FLOAT( 0, 10 ) },
+
+	{ &cg_defaultModelGender, "default_model_gender", DEFAULT_MODEL_GENDER, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultMaleModel, "default_male_model", DEFAULT_MODEL_MALE, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultMaleHeadModel, "default_male_headmodel", DEFAULT_HEAD_MALE, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultFemaleModel, "default_female_model", DEFAULT_MODEL_FEMALE, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultFemaleHeadModel, "default_female_headmodel", DEFAULT_HEAD_FEMALE, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultTeamModelGender, "default_team_model_gender", DEFAULT_TEAM_MODEL_GENDER, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultMaleTeamModel, "default_male_team_model", DEFAULT_TEAM_MODEL_MALE, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultMaleTeamHeadModel, "default_male_team_headmodel", DEFAULT_TEAM_HEAD_MALE, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultFemaleTeamModel, "default_female_team_model", DEFAULT_TEAM_MODEL_FEMALE, CVAR_ARCHIVE, RANGE_ALL },
+	{ &cg_defaultFemaleTeamHeadModel, "default_female_team_headmodel", DEFAULT_TEAM_HEAD_FEMALE, CVAR_ARCHIVE, RANGE_ALL },
 
 	{ &cg_introPlayed, "com_introPlayed", "0", CVAR_ARCHIVE, RANGE_BOOL },
 	{ &cg_joystickDebug, "in_joystickDebug", "0", CVAR_TEMP, RANGE_BOOL },
@@ -488,6 +544,7 @@ static userCvarTable_t userCvarTable[] = {
 	{ cg_teampref, "teampref", "", CVAR_USERINFO, RANGE_ALL },
 
 	{ cg_autoswitch, "cg_autoswitch", "1", CVAR_ARCHIVE, RANGE_BOOL },
+	{ cg_cyclePastGauntlet, "cg_cyclePastGauntlet", "1", CVAR_ARCHIVE, RANGE_BOOL },
 	{ cg_drawGun, "cg_drawGun", "1", CVAR_ARCHIVE, RANGE_INT(0, 3) },
 	{ cg_thirdPerson, "cg_thirdPerson", "1", 0, RANGE_BOOL },
 	{ cg_thirdPersonRange, "cg_thirdPersonRange", "40", CVAR_CHEAT, RANGE_ALL },
@@ -1356,31 +1413,10 @@ static void CG_RegisterSounds( void ) {
 	cgs.media.hgrenb2aSound = trap_S_RegisterSound("sound/weapons/grenade/hgrenb2a.wav", qfalse);
 
 #ifdef MISSIONPACK
-	trap_S_RegisterSound("sound/player/james/death1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/death2.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/death3.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/jump1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/pain25_1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/pain75_1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/pain100_1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/falling1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/gasp.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/drown.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/fall1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/james/taunt.wav", qfalse );
-
-	trap_S_RegisterSound("sound/player/janet/death1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/death2.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/death3.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/jump1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/pain25_1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/pain75_1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/pain100_1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/falling1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/gasp.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/drown.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/fall1.wav", qfalse );
-	trap_S_RegisterSound("sound/player/janet/taunt.wav", qfalse );
+	if ( cgs.gametype >= GT_TEAM || cg_buildScript.integer ) {
+		CG_CachePlayerSounds( cg_defaultMaleTeamModel.string );
+		CG_CachePlayerSounds( cg_defaultFemaleTeamModel.string );
+	}
 #endif
 
 }
@@ -1661,15 +1697,12 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.flagShaders[1] = trap_R_RegisterShaderNoMip("ui/assets/statusbar/flag_capture.tga");
 	cgs.media.flagShaders[2] = trap_R_RegisterShaderNoMip("ui/assets/statusbar/flag_missing.tga");
 
-	trap_R_RegisterModel( "models/players/james/lower.md3" );
-	trap_R_RegisterModel( "models/players/james/upper.md3" );
-	trap_R_RegisterModel( "models/players/heads/james/james.md3" );
-
-	trap_R_RegisterModel( "models/players/janet/lower.md3" );
-	trap_R_RegisterModel( "models/players/janet/upper.md3" );
-	trap_R_RegisterModel( "models/players/heads/janet/janet.md3" );
-
+	if ( cgs.gametype >= GT_TEAM || cg_buildScript.integer ) {
+		CG_CachePlayerModels( cg_defaultMaleTeamModel.string, cg_defaultMaleTeamHeadModel.string );
+		CG_CachePlayerModels( cg_defaultFemaleTeamModel.string, cg_defaultFemaleTeamHeadModel.string );
+	}
 #endif
+
 	CG_ClearParticles ();
 /*
 	for (i=1; i<MAX_PARTICLES_AREAS; i++)
@@ -1696,6 +1729,8 @@ void CG_LocalPlayerAdded(int localPlayerNum, int playerNum) {
 		return;
 
 	cg.localPlayers[localPlayerNum].playerNum = playerNum;
+
+	CG_LoadDeferredPlayers();
 }
 
 /*
@@ -1858,6 +1893,12 @@ qboolean CG_Asset_Parse(int handle) {
 			if (!PC_String_Parse(handle, &tempStr) || !PC_Int_Parse(handle, &pointSize)) {
 				return qfalse;
 			}
+			if (cg_hudFont.string[0]) {
+				if (CG_InitTrueTypeFont(cg_hudFont.string, pointSize, 0, &cgDC.Assets.textFont)) {
+					Com_DPrintf("Overriding HUD font '%s' with '%s'\n", tempStr, cg_hudFont.string);
+					continue;
+				}
+			}
 			if (!CG_InitTrueTypeFont(tempStr, pointSize, 0, &cgDC.Assets.textFont)) {
 				CG_InitBitmapFont(&cgDC.Assets.textFont, pointSize, pointSize / 2);
 			}
@@ -1870,6 +1911,12 @@ qboolean CG_Asset_Parse(int handle) {
 			if (!PC_String_Parse(handle, &tempStr) || !PC_Int_Parse(handle, &pointSize)) {
 				return qfalse;
 			}
+			if (cg_hudFont.string[0]) {
+				if (CG_InitTrueTypeFont(cg_hudFont.string, pointSize, 0, &cgDC.Assets.smallFont)) {
+					Com_DPrintf("Overriding HUD smallFont '%s' with '%s'\n", tempStr, cg_hudFont.string);
+					continue;
+				}
+			}
 			if (!CG_InitTrueTypeFont(tempStr, pointSize, 0, &cgDC.Assets.smallFont)) {
 				CG_InitBitmapFont(&cgDC.Assets.smallFont, pointSize, pointSize / 2);
 			}
@@ -1881,6 +1928,18 @@ qboolean CG_Asset_Parse(int handle) {
 			int pointSize;
 			if (!PC_String_Parse(handle, &tempStr) || !PC_Int_Parse(handle, &pointSize)) {
 				return qfalse;
+			}
+			if (cg_hudFont.string[0]) {
+				// ZTM: HACK: Team Arena hud.menu list bigFont as 20 point but status numbers are drawn at 36 point.
+				if (!strcmp(tempStr, "fonts/bigfont") && pointSize == 20 && CG_InitTrueTypeFont(cg_hudFont.string, 36, 0, &cgDC.Assets.bigFont)) {
+					Com_DPrintf("Overriding HUD bigFont '%s' (%d pt) with '%s' (36 pt)\n", tempStr, pointSize, cg_hudFont.string);
+					continue;
+				}
+
+				if (CG_InitTrueTypeFont(cg_hudFont.string, pointSize, 0, &cgDC.Assets.bigFont)) {
+					Com_DPrintf("Overriding HUD bigFont '%s' with '%s'\n", tempStr, cg_hudFont.string);
+					continue;
+				}
 			}
 			if (!CG_InitTrueTypeFont(tempStr, pointSize, 0, &cgDC.Assets.bigFont)) {
 				CG_InitBitmapFont(&cgDC.Assets.bigFont, pointSize, pointSize / 2);
@@ -2045,12 +2104,13 @@ qboolean CG_Load_Menu(char **p) {
 	while ( 1 ) {
 
 		token = COM_ParseExt(p, qtrue);
-		if ( !token[0] ) {
-			return qfalse;
-		}
 
 		if (Q_stricmp(token, "}") == 0) {
 			return qtrue;
+		}
+
+		if ( !token[0] ) {
+			return qfalse;
 		}
 
 		CG_ParseMenu(token); 
@@ -2098,7 +2158,7 @@ void CG_LoadMenus(const char *menuFile) {
 
 	while ( 1 ) {
 		token = COM_ParseExt( &p, qtrue );
-		if ( !token[0] ) {
+		if (!token[0]) {
 			break;
 		}
 
@@ -2344,6 +2404,7 @@ CG_LoadHudMenu();
 void CG_LoadHudMenu( void ) {
 	char buff[1024];
 	const char *hudSet;
+	menuDef_t *menu;
 
 	cgDC.registerShaderNoMip = &trap_R_RegisterShaderNoMip;
 	cgDC.setColor = &trap_R_SetColor;
@@ -2409,7 +2470,29 @@ void CG_LoadHudMenu( void ) {
 	CG_LoadMenus(hudSet);
 
 	// make voice chat head stick to left side in widescreen
-	Menu_SetScreenPlacement( Menus_FindByName( "voiceMenu" ), PLACE_LEFT, PLACE_TOP );
+	menu = Menus_FindByName( "voiceMenu" );
+	if ( menu && !menu->forceScreenPlacement ) {
+		Menu_SetScreenPlacement( menu, PLACE_LEFT, PLACE_TOP );
+	}
+
+	// Make vertical power up area stick to the left or right side in widescreen.
+	// Team Arena has it on the right side but also handle custom huds that use left side.
+	menu = Menus_FindByName( "powerup area" );
+	if ( menu && !menu->forceScreenPlacement ) {
+		itemDef_t *item = Menu_FindItemByName( menu, "powerupArea" );
+
+		if ( item && item->window.ownerDraw == CG_AREA_POWERUP && item->alignment == HUD_VERTICAL ) {
+			screenPlacement_e hpos;
+
+			if ( item->window.rect.x > SCREEN_WIDTH*0.5f ) {
+				hpos = PLACE_RIGHT;
+			} else {
+				hpos = PLACE_LEFT;
+			}
+
+			Menu_SetScreenPlacement( menu, hpos, PLACE_CENTER );
+		}
+	}
 }
 
 void CG_AssetCache( void ) {
@@ -2463,11 +2546,12 @@ void CG_ClearState( qboolean everything, int maxSplitView ) {
 	memset( cg_weapons, 0, sizeof(cg_weapons) );
 	memset( cg_items, 0, sizeof(cg_items) );
 
-	cg.cinematicHandle = -1;
-
 	for ( i = 0; i < CG_MaxSplitView(); i++ ) {
 		cg.localPlayers[i].playerNum = -1;
 	}
+
+	// get the rendering configuration from the client system
+	CG_UpdateGlconfig( qtrue );
 }
 
 /*
@@ -2515,11 +2599,6 @@ void CG_Init( connstate_t state, int maxSplitView, int playVideo ) {
 	cgs.media.nodrawShader		= trap_R_RegisterShaderEx( "nodraw", LIGHTMAP_NONE, qtrue );
 	cgs.media.whiteDynamicShader= trap_R_RegisterShaderEx( "white", LIGHTMAP_NONE, qtrue );
 
-	CG_TextInit();
-
-	// get the rendering configuration from the client system
-	CG_UpdateGlconfig( qtrue );
-
 	CG_ConsoleInit();
 
 	if ( cg_dedicated.integer ) {
@@ -2536,7 +2615,7 @@ void CG_Init( connstate_t state, int maxSplitView, int playVideo ) {
 
 	// if the user didn't give any commands, run default action
 	if ( playVideo == 1 ) {
-		trap_Cmd_ExecuteText( EXEC_APPEND, "cinematic idlogo.RoQ\n" );
+		trap_Cmd_ExecuteText( EXEC_NOW, "cinematic idlogo.RoQ\n" );
 		if( !cg_introPlayed.integer ) {
 			trap_Cvar_SetValue( "com_introPlayed", 1 );
 			trap_Cvar_Set( "nextmap", "cinematic intro.RoQ" );
@@ -2597,6 +2676,8 @@ void CG_Ingame_Init( int serverMessageNum, int serverCommandSequence, int maxSpl
 	if ( strcmp( s, GAME_VERSION ) ) {
 		CG_Error( "Client/Server game mismatch: %s/%s", GAME_VERSION, s );
 	}
+
+	CG_HudTextInit();
 
 	s = CG_ConfigString( CS_LEVEL_START_TIME );
 	cgs.levelStartTime = atoi( s );
@@ -2719,7 +2800,7 @@ void CG_Refresh( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback
 	// update cvars
 	CG_UpdateCvars();
 
-	if ( state == CA_CINEMATIC && cg.cinematicHandle >= 0 ) {
+	if ( state == CA_CINEMATIC && cg.cinematicPlaying ) {
 		float x, y, width, height;
 
 		x = 0;
@@ -2740,6 +2821,8 @@ void CG_Refresh( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback
 	}
 
 	if ( !cg_dedicated.integer && state == CA_DISCONNECTED && !UI_IsFullscreen() ) {
+		// if disconnected, bring up the menu
+		// ZTM: TODO: call trap_S_StopAllSounds() here. Currently it's done in cl_main.c
 		UI_SetActiveMenu( UIMENU_MAIN );
 	}
 
@@ -3413,6 +3496,7 @@ static void CG_UpdateGlconfig( qboolean initial ) {
 	}
 
 	if ( resized ) {
+		CG_ConsoleResized();
 		UI_WindowResized();
 	}
 }

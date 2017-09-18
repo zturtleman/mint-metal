@@ -46,8 +46,12 @@ Suite 120, Rockville, Maryland 20850 USA.
 #define	GAME_VERSION		MODDIR "-4"
 
 // used for switching fs_game
-#define BASEQ3				"baseq3"
-#define BASETA				"missionpack"
+#ifndef BASEQ3
+	#define BASEQ3			"baseq3"
+#endif
+#ifndef BASETA
+	#define BASETA			"missionpack"
+#endif
 
 #define	DEFAULT_GRAVITY		800
 #define	GIB_HEALTH			-40
@@ -60,6 +64,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 #define	SAY_ALL			0
 #define	SAY_TEAM		1
 #define	SAY_TELL		2
+
+#define CHATPLAYER_SERVER	-1
+#define CHATPLAYER_UNKNOWN	-2
 
 #define	MODELINDEX_BITS		10
 
@@ -874,27 +881,34 @@ typedef struct animation_s {
 #define DEFAULT_MODEL4			"visor"
 #define DEFAULT_HEAD4			"visor"
 
-// For fallback sounds
+// For fallback player and gender-specific fallback sounds
+#define DEFAULT_MODEL_GENDER	"male"
 #define DEFAULT_MODEL_MALE		"sarge"
+#define DEFAULT_HEAD_MALE		"sarge"
 #define DEFAULT_MODEL_FEMALE	"major"
+#define DEFAULT_HEAD_FEMALE		"major"
 
 #ifdef MISSIONPACK
 // Default team player model names
 #define DEFAULT_TEAM_MODEL		"james"
 #define DEFAULT_TEAM_HEAD		"*james"
 
-#define DEFAULT_TEAM_MODEL2		"james"
-#define DEFAULT_TEAM_HEAD2		"*james"
+#define DEFAULT_TEAM_MODEL2		"janet"
+#define DEFAULT_TEAM_HEAD2		"*janet"
 
-#define DEFAULT_TEAM_MODEL3		"janet"
-#define DEFAULT_TEAM_HEAD3		"*janet"
+#define DEFAULT_TEAM_MODEL3		"james"
+#define DEFAULT_TEAM_HEAD3		"*james"
 
 #define DEFAULT_TEAM_MODEL4		"janet"
 #define DEFAULT_TEAM_HEAD4		"*janet"
 
-// For team fallback sounds
+// For fallback player and gender-specific fallback sounds
+// Also used for Team Arena UI's character base model and CGame player pre-caching
+#define DEFAULT_TEAM_MODEL_GENDER	"male"
 #define DEFAULT_TEAM_MODEL_MALE		"james"
+#define DEFAULT_TEAM_HEAD_MALE		"*james"
 #define DEFAULT_TEAM_MODEL_FEMALE	"janet"
+#define DEFAULT_TEAM_HEAD_FEMALE	"*janet"
 #else
 // Default team player model names
 #define DEFAULT_TEAM_MODEL		DEFAULT_MODEL
@@ -909,9 +923,12 @@ typedef struct animation_s {
 #define DEFAULT_TEAM_MODEL4		DEFAULT_MODEL4
 #define DEFAULT_TEAM_HEAD4		DEFAULT_HEAD4
 
-// For team fallback sounds
+// For fallback player and gender-specific fallback sounds
+#define DEFAULT_TEAM_MODEL_GENDER	DEFAULT_MODEL_GENDER
 #define DEFAULT_TEAM_MODEL_MALE		DEFAULT_MODEL_MALE
+#define DEFAULT_TEAM_HEAD_MALE		DEFAULT_HEAD_MALE
 #define DEFAULT_TEAM_MODEL_FEMALE	DEFAULT_MODEL_FEMALE
+#define DEFAULT_TEAM_HEAD_FEMALE	DEFAULT_HEAD_FEMALE
 #endif
 
 
@@ -1164,6 +1181,7 @@ void	SnapVectorTowards( vec3_t v, vec3_t to );
 #define UI_GIANTFONT	0x00000300
 #define UI_TINYFONT		0x00000400
 #define UI_NUMBERFONT	0x00000500
+#define UI_CONSOLEFONT	0x00000600
 #define UI_FONTMASK		0x00000F00
 
 // other flags
@@ -1174,6 +1192,7 @@ void	SnapVectorTowards( vec3_t v, vec3_t to );
 #define UI_FORCECOLOR	0x00010000
 #define UI_GRADIENT		0x00020000
 #define UI_NOSCALE		0x00040000 // fixed size with other UI elements, don't change it's scale
+#define UI_INMOTION		0x00040000 // use for scrolling / moving text to fix uneven scrolling caused by aligning to pixel boundary
 
 
 typedef struct
