@@ -94,3 +94,4 @@ Suite 120, Rockville, Maryland 20850 USA.
 #define	SURF_FLESH				SURF_TYPE_SQUISHY
 #define	CONTENTS_TRIGGER 		CONTENTS_ORIGIN	// origin is unused, so use it for trigger
 #define	CONTENTS_BOTCLIP		0				// could make it CONTENTS_MONSTERCLIP, but bots are players not monsters
+#define	CONTENTS_LADDER			CONTENTS_ORIGIN		// used by BSPC internally

@@ -687,6 +687,12 @@ typedef struct {
 	consoleLine_t	consoleLines[ MAX_CONSOLE_LINES ];
 	int				numConsoleLines;
 
+	// teamchat width is *3 because of embedded color codes
+	char			teamChatMsgs[TEAMCHAT_HEIGHT][TEAMCHAT_WIDTH*3+1];
+	int				teamChatMsgTimes[TEAMCHAT_HEIGHT];
+	int				teamChatPos;
+	int				teamLastChatPos;
+
 } localPlayer_t;
  
 #define MAX_SPAWN_VARS          64
@@ -1279,12 +1285,6 @@ typedef struct {
 	vec3_t			inlineModelMidpoints[MAX_SUBMODELS];
 
 	playerInfo_t	playerinfo[MAX_CLIENTS];
-
-	// teamchat width is *3 because of embedded color codes
-	char			teamChatMsgs[TEAM_NUM_TEAMS][TEAMCHAT_HEIGHT][TEAMCHAT_WIDTH*3+1];
-	int				teamChatMsgTimes[TEAM_NUM_TEAMS][TEAMCHAT_HEIGHT];
-	int				teamChatPos[TEAM_NUM_TEAMS];
-	int				teamLastChatPos[TEAM_NUM_TEAMS];
 
 	int cursorX;
 	int cursorY;
@@ -1911,9 +1911,11 @@ typedef struct {
 	char	*cmd;
 	void	(*function)(void);
 	int		flags;
+	void	(*complete)(char *, int);
 } consoleCommand_t;
 
 qboolean CG_ConsoleCommand( connstate_t state, int realTime );
+qboolean CG_ConsoleCompleteArgument( connstate_t state, int realTime, int completeArgument );
 void CG_InitConsoleCommands( void );
 
 void CG_StopCinematic_f( void );
