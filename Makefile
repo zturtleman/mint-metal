@@ -375,11 +375,16 @@ ifeq ($(PLATFORM),darwin)
 
       CC=$(MACOSX_ARCH)-apple-darwin$(DARWIN)-cc
       RANLIB=$(MACOSX_ARCH)-apple-darwin$(DARWIN)-ranlib
+      LIPO=$(MACOSX_ARCH)-apple-darwin$(DARWIN)-lipo
 
       ifeq ($(call bin_path, $(CC)),)
         $(error Unable to find osxcross $(CC))
       endif
     endif
+  endif
+
+  ifndef LIPO
+    LIPO=lipo
   endif
 
   BASE_CFLAGS += -fno-strict-aliasing -fno-common -pipe
