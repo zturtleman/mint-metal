@@ -2998,6 +2998,12 @@ void CG_DrawMiscGamemodels( void ) {
 			VectorCopy( cgs.miscGameModels[i].axes[j], ent.axis[j] );
 		}
 		ent.hModel = cgs.miscGameModels[i].model;
+		ent.frameModel = cgs.miscGameModels[i].frameModel;
+		ent.oldframeModel = cgs.miscGameModels[i].frameModel;
+
+		ent.frame = cg.time / 100;
+		ent.oldframe = cg.time / 100;
+		ent.renderfx |= RF_WRAP_FRAMES;
 
 		ent.customSkin = CG_AddSkinToFrame( &cgs.miscGameModels[i].skin );
 		ent.customShader = cgs.miscGameModels[i].customShader;

@@ -251,15 +251,15 @@ typedef struct {
 // TODO?: support loading binary ".cik" files. It's probably the dtiki* structs in FAKK's qfiles.h.
 char tikiText[2][120000]; // julie_base.tik is really long
 int tikiTextIndex = 0;
-qboolean CG_LoadTiki( const char *filename, tikiModel_t *modelInfo, qhandle_t *hModel ) {
+qboolean CG_LoadTiki( const char *filename, tikiModel_t *modelInfo, qhandle_t *hSkelModel, qhandle_t *hAnimModel ) {
 	char		*text_p;
 	int			len;
 	int			i;
 	char		*token;
 	fileHandle_t	f;
-	char		skelmodel[MAX_QPATH];
-	char		animName[MAX_QPATH];
-	char		animFile[MAX_QPATH];
+	char		skelmodel[MAX_QPATH*2];
+	char		animName[64];
+	char		animFile[MAX_QPATH*2];
 	enum {
 		TIKI_NONE,
 		TIKI_SERVER,
@@ -437,7 +437,7 @@ qboolean CG_LoadTiki( const char *filename, tikiModel_t *modelInfo, qhandle_t *h
 				token = COM_Parse( &text_p );
 				Q_strncpyz( include, token, sizeof ( include ) );
 
-				if ( !CG_LoadTiki( include, modelInfo, hModel ) ) {
+				if ( !CG_LoadTiki( include, modelInfo, hSkelModel, hAnimModel ) ) {
 					CG_Printf("WARNING: Failed to load '%s' included in '%s'\n", include, filename );
 				}
 
@@ -582,11 +582,13 @@ qboolean CG_LoadTiki( const char *filename, tikiModel_t *modelInfo, qhandle_t *h
 
 				// ZTM: This should probably be defered until done parsing because path might not be set yet?
 				Com_sprintf( skelmodel, sizeof ( skelmodel ), "%s/%s", modelInfo->path, token );
-				*hModel = trap_R_RegisterModel( skelmodel );
+				*hSkelModel = trap_R_RegisterModel( skelmodel );
+
+				//Com_Printf( "DEBUG: Loaded skeleton base model '%s' for '%s'\n", skelmodel, filename );
 
 #if 0
 				// ZTM: Currently the engine doesn't support skb models so this will always fail.
-				if ( !*hModel ) {
+				if ( !*hSkelModel ) {
 					CG_Printf("WARNING: Failed to load skelmodel '%s' in '%s'\n", skelmodel, filename );
 				}
 #endif
@@ -601,23 +603,26 @@ qboolean CG_LoadTiki( const char *filename, tikiModel_t *modelInfo, qhandle_t *h
 		// animations
 		// TODO: they are optionally followed by a braced section with client and server sections.
 		// if there is a skelmodel than these are actually animations (.ska) files otherwise they're vertex models (.tan) files.
+		// FIXME?: skelmodel with .tan animation doesn't work
 		if ( section == TIKI_ANIMATIONS ) {
 			Q_strncpyz( animName, token, sizeof ( animName ) );
 
-			if ( !Q_stricmp( token, "idle" ) ) {
+			if ( !Q_stricmp( animName, "idle" ) ) {
 				token = COM_Parse( &text_p );
 
 				Com_sprintf( animFile, sizeof ( animFile ), "%s/%s", modelInfo->path, token );
 
-				*hModel = trap_R_RegisterModel( animFile );
+				*hAnimModel = trap_R_RegisterModel( animFile );
+				//Com_Printf( "DEBUG: Loaded animation model '%s' for '%s'\n", animFile, filename );
 				continue;
 			} else {
 				token = COM_Parse( &text_p );
 
-				// hack: some tiki files use .tan models but do not use idle animation
-				if ( !*hModel && COM_CompareExtension( token, ".tan" ) ) {
+				// hack: some tiki files do not use idle animation
+				if ( !*hAnimModel ) {
 					Com_sprintf( animFile, sizeof ( animFile ), "%s/%s", modelInfo->path, token );
-					*hModel = trap_R_RegisterModel( animFile );
+					*hAnimModel = trap_R_RegisterModel( animFile );
+					//Com_Printf( "DEBUG: Loaded animation model '%s' for '%s'\n", animFile, filename );
 				}
 
 				if ( cg_tikiDebug.integer ) {
@@ -704,7 +709,7 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 	vec3_t vScale;
 	cg_gamemodel_t *gamemodel;
 	int i;
-	qhandle_t hModel;
+	qhandle_t skelModel, animModel;
 
 	if ( cg_tikiDebug.integer ) {
 		CG_Printf("DEBUG: Adding tiki model '%s' at %s, yaw %f\n", tikiFile, vtos( origin ), angles[YAW] );
@@ -716,9 +721,10 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 
 	gamemodel = &cgs.miscGameModels[cg.numMiscGameModels];
 
-	hModel = 0;
+	skelModel = 0;
+	animModel = 0;
 
-	if ( !CG_LoadTiki( tikiFile, &modelInfo, &hModel ) ) {
+	if ( !CG_LoadTiki( tikiFile, &modelInfo, &skelModel, &animModel ) ) {
 		return;
 	}
 	cg.numMiscGameModels++;
@@ -749,15 +755,21 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 
 	VectorAdd( origin, modelInfo.offset, gamemodel->org );
 
+	if ( !animModel ) {
+		CG_Printf( "WARNING: no animation model loaded for '%s'\n", tikiFile );
+	}
+
+	if ( skelModel ) {
+		gamemodel->model = skelModel;
+		gamemodel->frameModel = animModel;
+	} else {
+		gamemodel->model = animModel;
+		gamemodel->frameModel = 0;
+	}
+
 	// multiply entity scale by scale from tiki file
 	scale *= modelInfo.scale;
 	VectorSet( vScale, scale, scale, scale );
-
-	if ( !hModel ) {
-		CG_Printf( "WARNING: no model loaded for '%s'\n", tikiFile );
-	}
-
-	gamemodel->model = hModel;
 
 	AnglesToAxis( angles, gamemodel->axes );
 	for ( i = 0; i < 3; i++ ) {
