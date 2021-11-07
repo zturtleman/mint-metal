@@ -235,6 +235,12 @@ typedef struct {
 } tikiSurface_t;
 
 typedef struct {
+	// from init-server
+	char classname[32];
+	vec3_t mins, maxs;
+	qboolean fly;
+
+	// from setup
 	vec3_t offset;
 	float scale;
 	float radius;
@@ -537,6 +543,29 @@ qboolean CG_LoadTiki( const char *filename, tikiModel_t *modelInfo, qhandle_t *h
 			}
 		}
 
+		// init-server
+		if ( section == TIKI_INIT_SERVER ) {
+			// classname "<string>"
+			if ( !Q_stricmp( token, "classname" ) ) {
+				token = COM_Parse( &text_p );
+				Q_strncpyz( modelInfo->classname, token, sizeof( modelInfo->classname ) );
+				continue;
+			}
+			// setsize "x y z" "x y z"
+			if ( !Q_stricmp( token, "setsize" ) ) {
+				token = COM_Parse( &text_p );
+				sscanf( token, "%f %f %f", &modelInfo->mins[0], &modelInfo->mins[1], &modelInfo->mins[2] );
+				token = COM_Parse( &text_p );
+				sscanf( token, "%f %f %f", &modelInfo->maxs[0], &modelInfo->maxs[1], &modelInfo->maxs[2] );
+				continue;
+			}
+			// fly
+			if ( !Q_stricmp( token, "fly" )  ) {
+				modelInfo->fly = qtrue;
+				continue;
+			}
+		}
+
 		// setup
 		if ( section == TIKI_SETUP ) {
 			// origin <float> <float> <float>
@@ -546,7 +575,6 @@ qboolean CG_LoadTiki( const char *filename, tikiModel_t *modelInfo, qhandle_t *h
 					modelInfo->offset[i] = atof( token );
 				}
 				continue;
-
 			}
 			// path <dirname>
 			else if ( !Q_stricmp( token, "path" ) ) {
@@ -707,9 +735,11 @@ void CG_TikiSkin( const char *filename, const tikiModel_t *modelInfo, cgSkin_t *
 void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, vec3_t angles ) {
 	tikiModel_t modelInfo;
 	vec3_t vScale;
+	vec3_t dest;
 	cg_gamemodel_t *gamemodel;
 	int i;
 	qhandle_t skelModel, animModel;
+	trace_t trace;
 
 	if ( cg_tikiDebug.integer ) {
 		CG_Printf("DEBUG: Adding tiki model '%s' at %s, yaw %f\n", tikiFile, vtos( origin ), angles[YAW] );
@@ -753,8 +783,6 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 		}
 	}
 
-	VectorAdd( origin, modelInfo.offset, gamemodel->org );
-
 	if ( !animModel ) {
 		CG_Printf( "WARNING: no animation model loaded for '%s'\n", tikiFile );
 	}
@@ -770,6 +798,19 @@ void CG_AddStaticTikiModel( const char *tikiFile, vec3_t origin, float scale, ve
 	// multiply entity scale by scale from tiki file
 	scale *= modelInfo.scale;
 	VectorSet( vScale, scale, scale, scale );
+
+	VectorScale( modelInfo.mins, scale, modelInfo.mins );
+	VectorScale( modelInfo.maxs, scale, modelInfo.maxs );
+
+	if ( !Q_stricmp( modelInfo.classname, "actor" ) && !modelInfo.fly ) {
+		VectorSet( dest, origin[0], origin[1], origin[2] - 4096 );
+		CG_Trace( &trace, origin, modelInfo.mins, modelInfo.maxs, dest, ENTITYNUM_NONE, MASK_SOLID );
+		VectorAdd( trace.endpos, modelInfo.offset, gamemodel->org );
+	} else {
+		VectorCopy( origin, trace.endpos );
+	}
+
+	VectorAdd( trace.endpos, modelInfo.offset, gamemodel->org );
 
 	AnglesToAxis( angles, gamemodel->axes );
 	for ( i = 0; i < 3; i++ ) {
