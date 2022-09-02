@@ -294,9 +294,30 @@ ifeq ($(PLATFORM),darwin)
 
   # Default minimum Mac OS X version
   ifeq ($(MACOSX_VERSION_MIN),)
-    MACOSX_VERSION_MIN=10.7
+    MACOSX_VERSION_MIN=10.9
     ifneq ($(findstring $(ARCH),ppc ppc64),)
       MACOSX_VERSION_MIN=10.5
+    endif
+    ifeq ($(ARCH),x86)
+      MACOSX_VERSION_MIN=10.6
+    endif
+    ifeq ($(ARCH),x86_64)
+      # trying to find default SDK version is hard
+      # macOS 10.15 requires -sdk macosx but 10.11 doesn't support it
+      # macOS 10.6 doesn't have -show-sdk-version
+      DEFAULT_SDK=$(shell xcrun -sdk macosx -show-sdk-version 2> /dev/null)
+      ifeq ($(DEFAULT_SDK),)
+        DEFAULT_SDK=$(shell xcrun -show-sdk-version 2> /dev/null)
+      endif
+      ifeq ($(DEFAULT_SDK),)
+        $(error Error: Unable to determine macOS SDK version.  On macOS 10.6 to 10.8 run: make MACOSX_VERSION_MIN=10.6  On macOS 10.9 or later run: make MACOSX_VERSION_MIN=10.9 );
+      endif
+
+      ifneq ($(findstring $(DEFAULT_SDK),10.6 10.7 10.8),)
+        MACOSX_VERSION_MIN=10.6
+      else
+        MACOSX_VERSION_MIN=10.9
+      endif
     endif
     ifeq ($(ARCH),arm64)
       MACOSX_VERSION_MIN=11.0
