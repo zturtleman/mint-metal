@@ -1,11 +1,13 @@
 **Spearmint Heavy Metal: F.A.K.K.²** game code. It is very incomplete. It's slightly better than trying to run FAKK2 using Quake 3 game code.
 
+mint-metal code commits: [compare/upstream...master](https://github.com/zturtleman/mint-metal/compare/upstream...master)
+
 To use this you'll need the [Spearmint engine](https://github.com/zturtleman/spearmint).
 
   * On Windows, install [Cygwin and mingw-w64](https://github.com/zturtleman/spearmint/wiki/Compiling#windows).
   * Get the source for Spearmint and build it using `make`.
   * Get the source for this repo and build it using `make`.
-  * Copy the pk3 files for fakk into the fakk directory in `mint-arena/build/release-mingw32-x86/`.
+  * Copy the pk3 files for fakk into the fakk directory in `mint-metal/build/release-mingw32-x86/`.
   * Copy the [spearmint-patch-data](https://github.com/zturtleman/spearmint-patch-data) for fakk there too.
 
 If you put both projects in the same directory you can launch the game using;
