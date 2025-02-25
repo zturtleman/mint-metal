@@ -1078,7 +1078,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 			// ZTM: NOTE: Some of these sounds don't really work with local player on different teams.
 			//     New games might want to replace you/enemy sounds with red/blue.
-			//     See http://github.com/zturtleman/spearmint/wiki/New-Sounds
+			//     See http://github.com/clover-moe/spearmint/wiki/New-Sounds
 
 			switch( es->eventParm ) {
 				case GTS_RED_CAPTURE: // CTF: red team captured the blue flag, 1FCTF: red team captured the neutral flag

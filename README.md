@@ -1,12 +1,12 @@
 **Spearmint Quake 3** and **Team Arena** game code.
 
-To use this you'll need the [Spearmint engine](https://github.com/zturtleman/spearmint).
+To use this you'll need the [Spearmint engine](https://github.com/clover-moe/spearmint).
 
-  * On Windows, install [Cygwin and mingw-w64](https://github.com/zturtleman/spearmint/wiki/Compiling#windows).
+  * On Windows, install [Cygwin and mingw-w64](https://github.com/clover-moe/spearmint/wiki/Compiling#windows).
   * Get the source for Spearmint and build it using `make`.
   * Get the source for this repo and build it using `make`.
   * Copy the pak?.pk3 files for baseq3 and missionpack into the directories in `mint-arena/build/release-mingw32-x86/`.
-  * Copy the [spearmint-patch-data](https://github.com/zturtleman/spearmint-patch-data) for baseq3 and missionpack there too.
+  * Copy the [spearmint-patch-data](https://github.com/clover-moe/spearmint-patch-data) for baseq3 and missionpack there too.
 
 If you put both projects in the same directory you can launch the game using;
 
