@@ -4724,9 +4724,6 @@ void UI_Init( qboolean inGameLoad, int maxSplitView ) {
 
 	trap_Cvar_Set("ui_videomode", va( "%dx%d", cgs.glconfig.vidWidth, cgs.glconfig.vidHeight ) );
 
-	// ### FIXME: Don't commit this.
-	Com_Printf( "DEBUG: ui_videomode default: '%s'\n", va( "%dx%d", cgs.glconfig.vidWidth, cgs.glconfig.vidHeight ) );
-
   //UI_Load();
 	uiInfo.uiDC.registerShaderNoMip = &trap_R_RegisterShaderNoMip;
 	uiInfo.uiDC.setColor = &trap_R_SetColor;
