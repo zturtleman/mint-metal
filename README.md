@@ -19,3 +19,24 @@ On Linux and OS X you'll need to put `./` before the command and substitute the 
 mint-arena is licensed under a [modified version of the GNU GPLv3](COPYING.txt#L625) (or at your option, any later version). This is due to including code from Return to Castle Wolfenstein and Wolfenstein: Enemy Territory.
 
 Submitted contributions must be given with permission to use as GPLv**2** (two) and any later version; unless the file is under a license besides the GPL, in which case that license applies. This allows me to potentially change the license to GPLv2 or later in the future.
+
+## Credits
+
+* Zack Middleton (main developer)
+* Tobias Kuehnhammer (feedback / bug reports / Bot AI fixes)
+* And other contributors
+
+Spearmint contains code from;
+* Quake 3 - id Software
+* ioquake3 - ioquake3 contributors
+* RTCW SP - Gray Matter Interactive
+* RTCW MP - Nerve Software
+* Wolfenstein: Enemy Territory - Splash Damage
+* Tremulous - Dark Legion Development
+* World of Padman - Padworld Entertainment
+* [ioEF engine](http://thilo.tjps.eu/efport-progress/) - Thilo Schulz
+* NetRadiant's q3map2 - Rudolf Polzer
+* OpenArena - OpenArena contributors
+* OpenMoHAA - OpenMoHAA contributors
+* Xreal (triangle mesh collision) - Robert Beckebans
+* ZEQ2-lite (cel shading) - ZEQ2 project
