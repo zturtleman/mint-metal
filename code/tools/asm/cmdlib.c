@@ -73,7 +73,7 @@ void ExpandWildcards( int *argc, char ***argv )
 	struct _finddata_t fileinfo;
 	intptr_t	handle;
 	int		i;
-	char	filename[1024];
+	char	filename[2048];
 	char	filebase[1024];
 	char	*path;
 
@@ -346,7 +346,7 @@ char *ExpandGamePath (const char *path)
 char *ExpandPathAndArchive (const char *path)
 {
 	char	*expanded;
-	char	archivename[1024];
+	char	archivename[2048];
 
 	expanded = ExpandPath (path);
 
