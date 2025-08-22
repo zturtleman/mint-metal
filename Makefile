@@ -230,7 +230,7 @@ endif
 
 ifneq (,$(findstring "$(PLATFORM)", "linux" "gnu_kfreebsd" "kfreebsd-gnu" "gnu"))
   BASE_CFLAGS = -Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes \
-    -pipe -DUSE_ICON -DARCH_STRING=\\\"$(ARCH)\\\"
+    -pipe -DUSE_ICON -fvisibility=hidden -DARCH_STRING=\\\"$(ARCH)\\\"
 
   OPTIMIZEVM = -O3
   OPTIMIZE = $(OPTIMIZEVM) -ffast-math
@@ -267,7 +267,7 @@ ifneq (,$(findstring "$(PLATFORM)", "linux" "gnu_kfreebsd" "kfreebsd-gnu" "gnu")
   endif
 
   SHLIBEXT=so
-  SHLIBCFLAGS=-fPIC -fvisibility=hidden
+  SHLIBCFLAGS=-fPIC
   SHLIBLDFLAGS=-shared $(LDFLAGS)
 
   THREAD_LIBS=-lpthread
