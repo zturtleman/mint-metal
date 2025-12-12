@@ -19,6 +19,18 @@ ifeq ($(COMPILE_PLATFORM),sunos)
   COMPILE_ARCH=$(shell uname -p | sed -e 's/i.86/x86/')
 endif
 
+ifneq ($(findstring mingw,$(COMPILE_PLATFORM)),)
+  # MSYS2 environments differ from uname
+  ifeq ($(MSYSTEM_CHOST),i686-w64-mingw32)
+    COMPILE_PLATFORM=mingw32
+    COMPILE_ARCH=x86
+  endif
+  ifeq ($(MSYSTEM_CHOST),x86_64-w64-mingw32)
+    COMPILE_PLATFORM=mingw32
+    COMPILE_ARCH=x86_64
+  endif
+endif
+
 ifndef BUILD_GAME_SO
   BUILD_GAME_SO    =
 endif
@@ -57,8 +69,13 @@ endif
 #############################################################################
 -include Makefile.local
 
+# cygwin environment isn't supported but mingw packages can be used if installed
 ifeq ($(COMPILE_PLATFORM),cygwin)
   PLATFORM=mingw32
+endif
+# MSYS2 msys environment is cygwin without mingw packages
+ifeq ($(COMPILE_PLATFORM),msys)
+  $(error MSYS2 MSYS environment is not supported, use MSYS2 MinGW 32-bit or 64-bit instead)
 endif
 
 ifndef PLATFORM
@@ -904,7 +921,7 @@ targets: makedirs
 	@echo "  COMPILE_PLATFORM: $(COMPILE_PLATFORM)"
 	@echo "  COMPILE_ARCH: $(COMPILE_ARCH)"
 	@echo "  CC: $(CC)"
-ifeq ($(PLATFORM),mingw32)
+ifdef MINGW
 	@echo "  WINDRES: $(WINDRES)"
 endif
 	@echo ""
