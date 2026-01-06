@@ -1410,8 +1410,7 @@ char *PlayerName(int playernum, char *name, int size) {
 		return "[playernum out of range]";
 	}
 	trap_GetConfigstring(CS_PLAYERS+playernum, buf, sizeof(buf));
-	strncpy(name, Info_ValueForKey(buf, "n"), size-1);
-	name[size-1] = '\0';
+	Q_strncpyz(name, Info_ValueForKey(buf, "n"), size);
 	Q_CleanStr( name );
 	return name;
 }
@@ -1515,8 +1514,7 @@ char *EasyPlayerName(int playernum, char *buf, int size) {
 			memmove(ptr, ptr+1, strlen(ptr + 1)+1);
 		}
 	}
-	strncpy(buf, name, size-1);
-	buf[size-1] = '\0';
+	Q_strncpyz(buf, name, size);
 	return buf;
 }
 
@@ -3870,8 +3868,7 @@ void BotMapScripts(bot_state_t *bs) {
 
 	trap_GetServerinfo(info, sizeof(info));
 
-	strncpy(mapname, Info_ValueForKey( info, "mapname" ), sizeof(mapname)-1);
-	mapname[sizeof(mapname)-1] = '\0';
+	Q_strncpyz(mapname, Info_ValueForKey( info, "mapname" ), sizeof(mapname));
 
 	if (!Q_stricmp(mapname, "q3tourney6") || !Q_stricmp(mapname, "q3tourney6_ctf") || !Q_stricmp(mapname, "mpq3tourney6")) {
 		vec3_t mins = {694, 200, 480}, maxs = {968, 472, 680};

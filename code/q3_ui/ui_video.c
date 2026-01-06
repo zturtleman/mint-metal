@@ -758,7 +758,7 @@ static void GraphicsOptions_ApplyChanges( void *unused, int notification )
 	{
 	case 0:
 		trap_Cvar_SetValue( "r_swapInterval", 1 );
-		trap_Cvar_SetValue( "com_maxfps", 125 );
+		trap_Cvar_SetValue( "com_maxfps", 0 );
 		break;
 	case 1:
 		trap_Cvar_SetValue( "r_swapInterval", 0 );
