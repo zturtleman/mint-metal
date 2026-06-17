@@ -1,4 +1,20 @@
-**Spearmint Heavy Metal: F.A.K.K.²** game code. It is very incomplete. It's slightly better than trying to run FAKK2 using Quake 3 game code.
+Spearmint running **mint-metal** is essentially an incomplete map viewer for FAKK / Alice. It's unlikely to ever be more than this.
+
+## State of the Project
+
+mint-metal was used for developing and testing support in Spearmint for various rendering features in Heavy Metal: F.A.K.K.² / American McGee's Alice.
+
+In Spearmint there is support for .FTX images, .TAN vertex animated models, various [.shader keywords / syntax](https://github.com/clover-moe/spearmint/wiki/Shaders), and ability to load .BSP maps (missing new features such as dynamic lights). There is also functional, yet not entirely completed, skeletal model .SKB (base) / .SKA (animation) support in the [wip-fakk-skb branch](https://github.com/clover-moe/spearmint/tree/wip-fakk-skb).
+
+In mint-metal there is support for basic client-side display for .TIK to show some prop models and (inanimate) NPCs on maps.
+
+In addition to rendering, FAKK / Alice would also require many new systems that are not derived from Quake 3 such as NPC states, level scripting, and (server-side / more complete) .TIK entity definitions. (This is just what came to mind right now, it's far from a complete list.)
+
+(Spearmint / mint-metal development referenced the data format structures and documentation from the FAKK SDK along with extensive testing of the original game and experimenting in Spearmint to match visuals. There is no decompilation involved or code from the FAKK SDK due to the EULA.)
+
+Rendering support was never completed in Spearmint and zturtleman isn't interested in continuing to reimplement FAKK / Alice in mint-metal or another open source project. zturtleman enjoyed developing these features and seeing FAKK / Alice come to life ... as essentially an incomplete map viewer. mint-metal may receive updates to integrate newer mint-arena changes for his own personal interest.
+
+## About
 
 mint-metal code commits: [compare/upstream...master](https://github.com/zturtleman/mint-metal/compare/upstream...master)
 
